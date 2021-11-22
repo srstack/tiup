@@ -72,6 +72,7 @@ func NewMeta() *Meta {
 
 // LoadFrom load meta from the specify file,
 // return a default Meta and save it if the file not exist.
+// default fname ~/.tiup/telemetry/meta.yaml
 func LoadFrom(fname string) (meta *Meta, err error) {
 	var data []byte
 	data, err = os.ReadFile(fname)
@@ -121,8 +122,9 @@ func GetMeta(env *environment.Environment) (meta *Meta, fname string, err error)
 	if err != nil {
 		return
 	}
-
+	// fname: ~/.tiup/telemetry/meta.yaml
 	fname = filepath.Join(dir, telemetryFname)
+	// get uuid and secret
 	meta, err = LoadFrom(fname)
 	return
 }

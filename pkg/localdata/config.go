@@ -27,11 +27,12 @@ type configBase struct {
 // TiUPConfig represent the config file of TiUP
 type TiUPConfig struct {
 	configBase
-	Mirror string `toml:"mirror"`
+	Mirror string `toml:"mirror"` // mirror  address； like https://tiup-mirrors.pingcap.com
 }
 
 // InitConfig returns a TiUPConfig struct which can flush config back to disk
 func InitConfig(root string) (*TiUPConfig, error) {
+	// root defaults is ~/.tiup
 	config := TiUPConfig{configBase{path.Join(root, "tiup.toml")}, ""}
 	if utils.IsNotExist(config.file) {
 		return &config, nil

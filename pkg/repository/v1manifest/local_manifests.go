@@ -76,6 +76,7 @@ func NewManifests(profile *localdata.Profile) (*FsManifests, error) {
 	}
 
 	// We must load without validation because we have no keys yet.
+	// root: root.json data
 	var root Root
 	_, err = ReadNoVerify(strings.NewReader(manifest), &root)
 	if err != nil {
@@ -94,6 +95,7 @@ func NewManifests(profile *localdata.Profile) (*FsManifests, error) {
 		return nil, err
 	}
 
+	// the cache can be read directly during the next load operation
 	result.cache.Store(ManifestFilenameRoot, manifest)
 
 	return result, nil
@@ -163,6 +165,7 @@ func (ms *FsManifests) LoadManifest(role ValidManifest) (*Manifest, bool, error)
 
 // LoadComponentManifest implements LocalManifests.
 func (ms *FsManifests) LoadComponentManifest(item *ComponentItem, filename string) (*Component, error) {
+	// manifest: root.json data
 	manifest, err := ms.load(filename)
 	if err != nil || manifest == "" {
 		return nil, err
@@ -182,24 +185,29 @@ func (ms *FsManifests) LoadComponentManifest(item *ComponentItem, filename strin
 		return nil, err
 	}
 
+	// the cache can be read directly during the next load operation
 	ms.cache.Store(filename, manifest)
 	return component, nil
 }
 
 // load return the file for the manifest from disk.
 // The returned string is empty if the file does not exist.
+// filename default is  root.json
 func (ms *FsManifests) load(filename string) (string, error) {
 	str, cached := ms.cache.Load(filename)
+	// if cached is not empty
 	if cached {
 		return str.(string), nil
 	}
 
+	// fullPath: ~/.tiup/manifests/root.json
 	fullPath := filepath.Join(ms.profile.Root(), localdata.ManifestParentDir, filename)
 	file, err := os.Open(fullPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			// Use the hardcode root.json if there is no root.json currently
 			if filename == ManifestFilenameRoot {
+				// initRoot: mirror root.json  ~/.tiup/bin/root.json
 				initRoot, err := filepath.Abs(filepath.Join(ms.profile.Root(), "bin/root.json"))
 				if err != nil {
 					return "", errors.Trace(err)
@@ -224,7 +232,7 @@ func (ms *FsManifests) load(filename string) (string, error) {
 	if err != nil {
 		return "", errors.AddStack(err)
 	}
-
+	// return file data
 	return builder.String(), nil
 }
 

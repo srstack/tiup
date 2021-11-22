@@ -57,6 +57,7 @@ func (m *Manager) ScaleOut(
 		return err
 	}
 
+	// get mate date whith the cluster name
 	metadata, err := m.meta(name)
 	// allow specific validation errors so that user can recover a broken
 	// cluster if it is somehow in a bad state.
@@ -65,10 +66,13 @@ func (m *Manager) ScaleOut(
 		return err
 	}
 
+	// get topology data
 	topo := metadata.GetTopology()
 	base := metadata.GetBaseMeta()
-	// Inherit existing global configuration. We must assign the inherited values before unmarshalling
+	// `Inherit existing global configuration. We must assign the inherited values before unmarshalling
 	// because some default value rely on the global options and monitored options.
+
+	// newPart include global monitored and server_configs
 	newPart := topo.NewPart()
 
 	// The no tispark master error is ignored, as if the tispark master is removed from the topology
@@ -79,6 +83,7 @@ func (m *Manager) ScaleOut(
 		return err
 	}
 
+	// check tiflash version
 	if clusterSpec, ok := topo.(*spec.Specification); ok {
 		if clusterSpec.GlobalOptions.TLSEnabled &&
 			semver.Compare(base.Version, "v4.0.5") < 0 &&
@@ -111,6 +116,7 @@ func (m *Manager) ScaleOut(
 		}
 	}
 
+	// complementary architecture type
 	if err := m.fillHostArch(sshConnProps, sshProxyProps, newPart, &gOpt, opt.User); err != nil {
 		return err
 	}
@@ -120,6 +126,7 @@ func (m *Manager) ScaleOut(
 	if err := mergedTopo.Validate(); err != nil {
 		return err
 	}
+	// abs(relative path)
 	spec.ExpandRelativeDir(mergedTopo)
 
 	if topo, ok := mergedTopo.(*spec.Specification); ok {

@@ -88,6 +88,7 @@ func init() {
 
 	cobra.EnableCommandSorting = false
 
+	// use native ssh
 	nativeEnvVar := strings.ToLower(os.Getenv(localdata.EnvNameNativeSSHClient))
 	if nativeEnvVar == "true" || nativeEnvVar == "1" || nativeEnvVar == "enable" {
 		gOpt.NativeSSH = true
@@ -111,6 +112,7 @@ func init() {
 
 			var err error
 			var env *tiupmeta.Environment
+			// create the cluster base dir
 			if err = spec.Initialize("cluster"); err != nil {
 				return err
 			}
@@ -275,6 +277,7 @@ func Execute() {
 	teleReport.EventDetail = &telemetry.Report_Cluster{Cluster: clusterReport}
 	reportEnabled = telemetry.Enabled()
 	if reportEnabled {
+		// initialize teleReport
 		eventUUID := os.Getenv(localdata.EnvNameTelemetryEventUUID)
 		if eventUUID == "" {
 			eventUUID = uuid.New().String()
@@ -287,6 +290,7 @@ func Execute() {
 
 	start := time.Now()
 	code := 0
+	// run cmd
 	err := rootCmd.Execute()
 	if err != nil {
 		code = 1
@@ -332,6 +336,8 @@ func Execute() {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 			tele := telemetry.NewTelemetry()
 			err := tele.Report(ctx, teleReport)
+
+			// debug mode only
 			if environment.DebugMode {
 				if err != nil {
 					log.Infof("report failed: %v", err)

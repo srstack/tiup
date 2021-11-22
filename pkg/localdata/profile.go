@@ -34,8 +34,8 @@ import (
 
 // Profile represents the `tiup` profile
 type Profile struct {
-	root   string
-	Config *TiUPConfig
+	root   string      // ~/.tiup
+	Config *TiUPConfig // ~./.tiup/tiup.toml
 }
 
 // NewProfile returns a new profile instance
@@ -56,9 +56,11 @@ func InitProfile() *Profile {
 		if err != nil {
 			panic("cannot get current user information: " + err.Error())
 		}
+		// root defaults is ~/.tiup
 		profileDir = filepath.Join(u.HomeDir, ProfileDirName)
 	}
 
+	// defaults is ~/.tiup/tiup.toml
 	cfg, err := InitConfig(profileDir)
 	if err != nil {
 		panic("cannot read config: " + err.Error())
@@ -185,6 +187,8 @@ func (p *Profile) InstalledComponents() ([]string, error) {
 
 // InstalledVersions returns the installed versions of specific component
 func (p *Profile) InstalledVersions(component string) ([]string, error) {
+
+	// ～/.tiup/components/diag/[version]/[bin_name]
 	path := filepath.Join(p.root, ComponentParentDir, component)
 	if utils.IsNotExist(path) {
 		return nil, nil
@@ -205,6 +209,8 @@ func (p *Profile) InstalledVersions(component string) ([]string, error) {
 		}
 		versions = append(versions, fi.Name())
 	}
+
+	// [version1, version2, version3]
 	return versions, nil
 }
 
@@ -229,8 +235,10 @@ func (p *Profile) ResetMirror(addr, root string) error {
 	if _, err := io.Copy(shaWriter, strings.NewReader(addr)); err != nil {
 		return err
 	}
+	// local root.json path with hash tag
 	localRoot := p.Path("bin", fmt.Sprintf("%s.root.json", hex.EncodeToString(shaWriter.Sum(nil))[:16]))
 
+	// root is a local file or a network file https://tiup-mirrors.pingcap.com/root.json
 	if root == "" {
 		switch {
 		case utils.IsExist(localRoot):
@@ -267,6 +275,8 @@ func (p *Profile) ResetMirror(addr, root string) error {
 	if err != nil {
 		return err
 	}
+
+	// copy new root.json to p.root()/.tiup/bin/root.json
 	if _, err := io.Copy(f, wc); err != nil {
 		f.Close()
 		return err
@@ -279,13 +289,16 @@ func (p *Profile) ResetMirror(addr, root string) error {
 			fmt.Printf("WARN: adding root certificate via internet: %s\n", root)
 			fmt.Printf("You can revoke this by remove %s\n", localRoot)
 		}
+		// copy p.root()/.tiup/bin/root.json to the local root.json path with hash tag
 		_ = utils.Copy(p.Path("bin", "root.json"), localRoot)
 	}
 
+	// clean up old manifests data
 	if err := os.RemoveAll(p.Path(ManifestParentDir)); err != nil {
 		return err
 	}
 
+	// set mirror address and flush config file
 	p.Config.Mirror = addr
 	return p.Config.Flush()
 }

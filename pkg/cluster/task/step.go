@@ -107,6 +107,8 @@ func (s *StepDisplay) Execute(ctx context.Context) error {
 
 	ctxt.GetInner(ctx).Ev.Subscribe(ctxt.EventTaskBegin, s.handleTaskBegin)
 	ctxt.GetInner(ctx).Ev.Subscribe(ctxt.EventTaskProgress, s.handleTaskProgress)
+
+	// exec shell command
 	err := s.inner.Execute(ctx)
 	ctxt.GetInner(ctx).Ev.Unsubscribe(ctxt.EventTaskProgress, s.handleTaskProgress)
 	ctxt.GetInner(ctx).Ev.Unsubscribe(ctxt.EventTaskBegin, s.handleTaskBegin)

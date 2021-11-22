@@ -44,6 +44,7 @@ func (s *KeyStore) AddKeys(role string, threshold uint, expiry string, keys map[
 		return errors.Errorf("invalid threshold (0)")
 	}
 
+	// role key info
 	rk := roleKeys{threshold: threshold, expiry: expiry, keys: &sync.Map{}}
 
 	for id, info := range keys {
@@ -51,9 +52,12 @@ func (s *KeyStore) AddKeys(role string, threshold uint, expiry string, keys map[
 		if err != nil {
 			return err
 		}
-
+		// role store publickey
 		rk.keys.Store(id, pub)
 	}
+
+	// keystone strore role key
+	// role: the tyoe of manifest
 	s.Store(role, rk)
 
 	return nil
@@ -118,6 +122,7 @@ func (s *KeyStore) verifySignature(signed []byte, role string, signatures []Sign
 
 	// Check for duplicate signatures.
 	has := make(map[string]struct{})
+
 	for _, sig := range signatures {
 		if _, ok := has[sig.KeyID]; ok {
 			return newSignatureError(filename, errors.Errorf("signature section of %s contains duplicate signatures", filename))
@@ -127,12 +132,15 @@ func (s *KeyStore) verifySignature(signed []byte, role string, signatures []Sign
 
 	ks, ok := s.Load(role)
 	if !ok {
+		// role: the type of manifest
 		return errors.Errorf("Unknown role %s", role)
 	}
+	// get keys
 	keys := ks.(roleKeys)
 
 	var validSigs uint = 0
 	for _, sig := range signatures {
+		// get roleKeys.key 
 		key, ok := keys.keys.Load(sig.KeyID)
 		if !ok {
 			continue
@@ -141,6 +149,7 @@ func (s *KeyStore) verifySignature(signed []byte, role string, signatures []Sign
 		if err != nil {
 			return newSignatureError(filename, err)
 		}
+		// valid signatures count
 		validSigs++
 	}
 

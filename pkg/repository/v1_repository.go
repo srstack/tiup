@@ -206,7 +206,7 @@ func (r *V1Repository) ensureManifests() error {
 		log.Verbose("Ensure manifests finished in %s", time.Since(start))
 	}(time.Now())
 
-	// Update snapshot.
+	// Update snapshot.json
 	snapshot, err := r.updateLocalSnapshot()
 	if err != nil {
 		return err
@@ -221,6 +221,7 @@ func (r *V1Repository) updateLocalSnapshot() (*v1manifest.Snapshot, error) {
 		log.Verbose("Update local snapshot finished in %s", time.Since(start))
 	}(time.Now())
 
+	// doump ts.json
 	timestampChanged, tsManifest, err := r.fetchTimestamp()
 	if v1manifest.IsSignatureError(errors.Cause(err)) || v1manifest.IsExpirationError(errors.Cause(err)) {
 		// The signature is wrong, update our signatures from the root manifest and try again.
@@ -228,6 +229,7 @@ func (r *V1Repository) updateLocalSnapshot() (*v1manifest.Snapshot, error) {
 		if err != nil {
 			return nil, err
 		}
+		// dump the timestamp.json
 		timestampChanged, tsManifest, err = r.fetchTimestamp()
 		if err != nil {
 			return nil, err
@@ -242,11 +244,13 @@ func (r *V1Repository) updateLocalSnapshot() (*v1manifest.Snapshot, error) {
 		return nil, err
 	}
 
+	//  get ts -> snapshot hash
 	hash := tsManifest.Signed.(*v1manifest.Timestamp).SnapshotHash()
 	bytes, err := cjson.Marshal(snapshotManifest)
 	if err != nil {
 		return nil, err
 	}
+	// hash snapshot.json
 	hash256 := sha256.Sum256(bytes)
 
 	snapshotChanged := true
@@ -257,6 +261,7 @@ func (r *V1Repository) updateLocalSnapshot() (*v1manifest.Snapshot, error) {
 	}
 
 	if snapshotChanged {
+		// fetch the lastest snapshot.json
 		manifest, err := r.fetchManifestWithHash(v1manifest.ManifestURLSnapshot, &snapshot, &hash)
 		if err != nil {
 			return nil, err
@@ -265,6 +270,7 @@ func (r *V1Repository) updateLocalSnapshot() (*v1manifest.Snapshot, error) {
 		// Persistent the snapshot first and prevent the snapshot.json/timestamp.json inconsistent
 		// 1. timestamp.json is fetched every time
 		// 2. when interrupted after timestamp.json been saved but snapshot.json have not, the snapshot.json is not going to be updated anymore
+		// resave the snapshot.json
 		err = r.local.SaveManifest(manifest, v1manifest.ManifestFilenameSnapshot)
 		if err != nil {
 			return nil, err
@@ -277,7 +283,7 @@ func (r *V1Repository) updateLocalSnapshot() (*v1manifest.Snapshot, error) {
 			return nil, err
 		}
 		newRootVersion := snapshot.Meta[v1manifest.ManifestURLRoot].Version
-
+		// if root have been updated, retry update local snapshot
 		if newRootVersion > oldRoot.Version {
 			err := r.updateLocalRoot()
 			if err != nil {
@@ -287,6 +293,7 @@ func (r *V1Repository) updateLocalSnapshot() (*v1manifest.Snapshot, error) {
 		}
 	}
 
+	// updata ts
 	if timestampChanged {
 		err = r.local.SaveManifest(tsManifest, v1manifest.ManifestFilenameTimestamp)
 		if err != nil {
@@ -306,6 +313,7 @@ func FnameWithVersion(fname string, version uint) string {
 	return filepath.Join(dir, versionBase)
 }
 
+// update root.json version
 func (r *V1Repository) updateLocalRoot() error {
 	defer func(start time.Time) {
 		log.Verbose("Update local root finished in %s", time.Since(start))
@@ -332,10 +340,12 @@ func (r *V1Repository) updateLocalRoot() error {
 		}
 		newManifest = nextManifest
 
+		// make sure the version +1
 		if newRoot.Version != oldRoot.Version+1 {
 			return errors.Errorf("root version is %d, but should be: %d", newRoot.Version, oldRoot.Version+1)
 		}
 
+		// check newversion expires time bigger than old version
 		if err = v1manifest.ExpiresAfter(&newRoot, oldRoot); err != nil {
 			return err
 		}
@@ -382,6 +392,8 @@ func (r *V1Repository) updateLocalIndex(snapshot *v1manifest.Snapshot) error {
 		return err
 	}
 
+	// snapshot version
+	// default 0
 	snapIndexVersion := snapshot.Meta[v1manifest.ManifestURLIndex].Version
 
 	if exists && oldIndex.Version == snapIndexVersion {
@@ -393,21 +405,25 @@ func (r *V1Repository) updateLocalIndex(snapshot *v1manifest.Snapshot) error {
 		return err
 	}
 
+	// URL: /index.json
 	url, fileVersion, err := snapshot.VersionedURL(root.Roles[v1manifest.ManifestTypeIndex].URL)
 	if err != nil {
 		return err
 	}
 
+	// fetch index.json
 	var index v1manifest.Index
 	manifest, err := r.fetchManifest(url, &index, fileVersion.Length)
 	if err != nil {
 		return err
 	}
 
+	// local version > http version
 	if exists && index.Version < oldIndex.Version {
 		return errors.Errorf("index manifest has a version number < the old manifest (%v, %v)", index.Version, oldIndex.Version)
 	}
 
+	// save index.json
 	return r.local.SaveManifest(manifest, v1manifest.ManifestFilenameIndex)
 }
 
@@ -423,6 +439,8 @@ func (r *V1Repository) updateComponentManifest(id string, withYanked bool) (*v1m
 	if err != nil {
 		return nil, err
 	}
+
+	// get component list
 	var components map[string]v1manifest.ComponentItem
 	if withYanked {
 		components = index.ComponentListWithYanked()
@@ -430,17 +448,23 @@ func (r *V1Repository) updateComponentManifest(id string, withYanked bool) (*v1m
 		components = index.ComponentList()
 	}
 
+	// check component is exists
 	item, ok := components[id]
 	if !ok {
 		return nil, ErrUnknownComponent
 	}
+
+	// load snapshot manifest
 	var snapshot v1manifest.Snapshot
 	_, _, err = r.local.LoadManifest(&snapshot)
 	if err != nil {
 		return nil, err
 	}
 
+	// [component].json
 	filename := v1manifest.ComponentManifestFilename(id)
+
+	// /[component].json
 	url, fileVersion, err := snapshot.VersionedURL(item.URL)
 	if err != nil {
 		return nil, err
@@ -448,6 +472,7 @@ func (r *V1Repository) updateComponentManifest(id string, withYanked bool) (*v1m
 
 	oldVersion := r.local.ManifestVersion(filename)
 
+	// oldVersion == 0: filename is not exist
 	if oldVersion != 0 && oldVersion == fileVersion.Version {
 		// We're up to date, load the old manifest from disk.
 		comp, err := r.local.LoadComponentManifest(&item, filename)
@@ -457,6 +482,7 @@ func (r *V1Repository) updateComponentManifest(id string, withYanked bool) (*v1m
 		return comp, err
 	}
 
+	// dump [component].json
 	var component v1manifest.Component
 	manifest, fetchErr := r.fetchComponentManifest(&item, url, &component, fileVersion.Length)
 	if fetchErr != nil {
@@ -468,10 +494,12 @@ func (r *V1Repository) updateComponentManifest(id string, withYanked bool) (*v1m
 		}
 	}
 
+	// oldVersion == 0: filename is not exist
 	if oldVersion != 0 && component.Version < oldVersion {
 		return nil, fmt.Errorf("component manifest for %s has a version number < the old manifest (%v, %v)", id, component.Version, oldVersion)
 	}
 
+	// save [component].json
 	err = r.local.SaveComponentManifest(manifest, filename)
 	if err != nil {
 		return nil, err
@@ -531,14 +559,17 @@ func (r *V1Repository) fetchTimestamp() (changed bool, manifest *v1manifest.Mani
 		r.timestamp = manifest
 	}(time.Now())
 
+	// get ts.json
 	var ts v1manifest.Timestamp
 	manifest, err = r.fetchManifest(v1manifest.ManifestURLTimestamp, &ts, maxTimeStampSize)
 	if err != nil {
 		return false, nil, err
 	}
 
+	// get hash value {hashes, lenth}
 	hash := ts.SnapshotHash()
 
+	// load local  ts
 	var localTs v1manifest.Timestamp
 	_, exists, err := r.local.LoadManifest(&localTs)
 	if err != nil {
@@ -588,6 +619,7 @@ func (r *V1Repository) fetchManifestWithKeyStore(url string, role v1manifest.Val
 
 func (r *V1Repository) fetchManifestWithHash(url string, role v1manifest.ValidManifest, hash *v1manifest.FileHash) (*v1manifest.Manifest, error) {
 	return r.fetchBase(url, hash.Length, func(reader io.Reader) (*v1manifest.Manifest, error) {
+		// check hash length
 		bufReader, err := checkHash(reader, hash.Hashes[v1manifest.SHA256])
 		if err != nil {
 			return nil, errors.Annotatef(err, "validation failed for %s", url)
@@ -720,6 +752,7 @@ func (r *V1Repository) UpdateComponentManifests() error {
 
 // FetchComponentManifest fetch the component manifest.
 func (r *V1Repository) FetchComponentManifest(id string, withYanked bool) (com *v1manifest.Component, err error) {
+	// update ts and snapshot
 	err = r.ensureManifests()
 	if err != nil {
 		return nil, err
@@ -858,6 +891,7 @@ func (r *V1Repository) ResolveComponentVersion(id, constraint string) (utils.Ver
 
 // LatestNightlyVersion returns the latest nightly version of specific component
 func (r *V1Repository) LatestNightlyVersion(id string) (utils.Version, *v1manifest.VersionItem, error) {
+	// com:  [com].json
 	com, err := r.FetchComponentManifest(id, false)
 	if err != nil {
 		return "", nil, err

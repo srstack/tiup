@@ -44,7 +44,9 @@ func RunComponent(env *environment.Environment, tag, spec, binPath string, args 
 	// Clean data if current instance is a temporary
 	clean := tag == "" && os.Getenv(localdata.EnvNameInstanceDataDir) == ""
 
+	// sub process with process
 	p, err := launchComponent(ctx, component, version, binPath, tag, args, env)
+
 	// If the process has been launched, we must save the process info to meta directory
 	if err == nil || (p != nil && p.Pid != 0) {
 		defer cleanDataDir(clean, p.Dir)
@@ -89,8 +91,12 @@ func RunComponent(env *environment.Environment, tag, spec, binPath string, args 
 
 	// timeout for check update
 	go func() {
-		time.Sleep(2 * time.Second)
-		updateC <- ""
+		timer := time.NewTimer(2 * time.Second)
+		select {
+		case <-timer.C:
+			updateC <- ""
+		}
+
 	}()
 
 	go func() {
@@ -166,12 +172,14 @@ func PrepareCommand(p *PrepareCommandParams) (*exec.Cmd, error) {
 	binPath := p.BinPath
 
 	if binPath != "" {
+		// get abs path , like ~/.tiup/component/diag/[version]/diag
 		tmp, err := filepath.Abs(binPath)
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
 		binPath = tmp
 	} else {
+		// download component
 		selectVer, err := env.DownloadComponentIfMissing(p.Component, p.Version)
 		if err != nil {
 			return nil, err
@@ -255,7 +263,7 @@ func launchComponent(ctx context.Context, component string, version utils.Versio
 
 	params := &PrepareCommandParams{
 		Ctx:         ctx,
-		Component:   component,
+		Component:   component, // sub component, like diag or bench
 		Version:     version,
 		BinPath:     binPath,
 		Tag:         tag,
@@ -266,6 +274,8 @@ func launchComponent(ctx context.Context, component string, version utils.Versio
 		Env:         env,
 		CheckUpdate: true,
 	}
+
+	// create new process with params
 	c, err := PrepareCommand(params)
 	if err != nil {
 		return nil, err
@@ -282,6 +292,7 @@ func launchComponent(ctx context.Context, component string, version utils.Versio
 	}
 
 	fmt.Fprintf(os.Stderr, "Starting component `%s`: %s\n", component, strings.Join(append([]string{p.Exec}, p.Args...), " "))
+	// strat sub component
 	err = p.Cmd.Start()
 	if p.Cmd.Process != nil {
 		p.Pid = p.Cmd.Process.Pid

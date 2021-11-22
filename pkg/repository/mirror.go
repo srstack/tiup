@@ -92,16 +92,22 @@ type (
 )
 
 // NewMirror returns a mirror instance Base on the schema of mirror
+// mirror: mirror address like https://tiup-mirrors.pingcap.com or local path
 func NewMirror(mirror string, options MirrorOptions) Mirror {
 	if options.Progress == nil {
+		// init mirror download progressbar
 		options.Progress = &ProgressBar{}
 	}
+
+	// remote mirror address
 	if strings.HasPrefix(mirror, "http") {
 		return &httpMirror{
 			server:  mirror,
 			options: options,
 		}
 	}
+
+	// local path
 	return &localFilesystem{rootPath: mirror, keyDir: options.KeyDir, upstream: options.Upstream}
 }
 
@@ -127,6 +133,7 @@ func (l *localFilesystem) Open() error {
 		return errors.Errorf("local system mirror `%s` should be a directory", l.rootPath)
 	}
 
+	// get mirror key dir
 	if l.keyDir == "" {
 		l.keyDir = path.Join(l.rootPath, "keys")
 	}
@@ -139,6 +146,9 @@ func (l *localFilesystem) Open() error {
 // load mirror keys
 func (l *localFilesystem) loadKeys() error {
 	l.keys = make(map[string]*v1manifest.KeyInfo)
+
+	// keyDir: l.rootPath/keys
+	//
 	return filepath.Walk(l.keyDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -152,11 +162,13 @@ func (l *localFilesystem) loadKeys() error {
 		}
 		defer f.Close()
 
+		// decode key file
 		ki := v1manifest.KeyInfo{}
 		if err := json.NewDecoder(f).Decode(&ki); err != nil {
 			return errors.Annotate(err, "decode key")
 		}
 
+		// set key
 		id, err := ki.ID()
 		if err != nil {
 			return err
@@ -279,6 +291,7 @@ func (l *httpMirror) Source() string {
 
 // Open implements the Mirror interface
 func (l *httpMirror) Open() error {
+	// create temporary mirror directory if it doesn't exist
 	tmpDir := filepath.Join(os.TempDir(), strconv.Itoa(rand.Int()))
 	if err := os.MkdirAll(tmpDir, os.ModePerm); err != nil {
 		return errors.Trace(err)

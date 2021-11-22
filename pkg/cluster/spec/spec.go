@@ -187,6 +187,7 @@ type UpgradableMetadata interface {
 }
 
 // NewPart implements ScaleOutTopology interface.
+// include global monitored and server_configs
 func (s *Specification) NewPart() Topology {
 	return &Specification{
 		GlobalOptions:    s.GlobalOptions,
@@ -273,7 +274,7 @@ func (s *Specification) GetTiKVLabels() (map[string]map[string]string, []map[str
 		if locationLabels[address], err = kv.Labels(); err != nil {
 			return nil, nil, err
 		}
-	}
+	} 
 	return locationLabels, nil, nil
 }
 

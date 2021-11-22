@@ -57,6 +57,7 @@ func NewManager(sysName string, specManager *spec.SpecManager, bindVersion spec.
 	}
 }
 
+// mate return the cluster mate information
 func (m *Manager) meta(name string) (metadata spec.Metadata, err error) {
 	exist, err := m.specManager.Exist(name)
 	if err != nil {
@@ -159,6 +160,7 @@ func (m *Manager) sshTaskBuilder(name string, topo spec.Topology, user string, g
 		), nil
 }
 
+// fillHostArch: Complete the architecture of the target host
 func (m *Manager) fillHostArch(s, p *tui.SSHConnectionProps, topo spec.Topology, gOpt *operator.Options, user string) error {
 	globalSSHType := topo.BaseTopo().GlobalOptions.SSHType
 	hostArch := map[string]string{}
@@ -214,6 +216,7 @@ func (m *Manager) fillHostArch(s, p *tui.SSHConnectionProps, topo spec.Topology,
 		if !ok {
 			return fmt.Errorf("no check results found for %s", host)
 		}
+		// [host_ip]: amd64
 		hostArch[host] = strings.Trim(string(stdout), "\n")
 	}
 	return topo.FillHostArch(hostArch)

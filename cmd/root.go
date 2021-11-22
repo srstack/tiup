@@ -51,6 +51,7 @@ var (
 	printVersion bool // not using cobra.Command.Version to make it possible to show component versions
 )
 
+// init initializes root cmd option
 func init() {
 	cobra.EnableCommandSorting = false
 	_ = os.Setenv(localdata.EnvNameTelemetryEventUUID, eventUUID)
@@ -84,6 +85,7 @@ the latest stable version will be downloaded from the repository.`,
 				}
 				fallthrough
 			default:
+				// init environment include mirror and localManifests( VerifySignature x.json)
 				e, err := environment.InitEnv(repoOpts)
 				if err != nil {
 					if errors.Is(perrs.Cause(err), v1manifest.ErrLoadManifest) {
@@ -100,13 +102,16 @@ the latest stable version will be downloaded from the repository.`,
 				fmt.Println(version.NewTiUPVersion().String())
 				return nil
 			}
+			// init environment
 			env := environment.GlobalEnv()
 			if binary != "" {
-				component, ver := environment.ParseCompVersion(binary)
+				component, ver := environment.ParseCompVersion(binary) // <component>[:version]
 				selectedVer, err := env.SelectInstalledVersion(component, ver)
 				if err != nil {
 					return err
 				}
+
+				// component:version bin path
 				binaryPath, err := env.BinaryPath(component, selectedVer)
 				if err != nil {
 					return err
@@ -135,6 +140,7 @@ the latest stable version will be downloaded from the repository.`,
 			return cmd.Help()
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+			// close env or cleanup env
 			if env := environment.GlobalEnv(); env != nil {
 				return env.Close()
 			}
@@ -195,6 +201,7 @@ func Execute() {
 
 	err := rootCmd.Execute()
 	if err != nil {
+		// red output
 		fmt.Println(color.RedString("Error: %v", err))
 		code = 1
 	}
@@ -204,6 +211,8 @@ func Execute() {
 	teleReport.EventDetail = &telemetry.Report_Tiup{Tiup: tiupReport}
 
 	env := environment.GlobalEnv()
+
+	// Load metadata
 	if env == nil {
 		// if the env is not initialized, skip telemetry upload
 		// as many info are read from the env.
@@ -213,36 +222,49 @@ func Execute() {
 	} else {
 		teleMeta, _, err := telemetry.GetMeta(env)
 		if err == nil {
+			// determine whether the metadata is enable
 			reportEnabled = teleMeta.Status == telemetry.EnableStatus
 			teleReport.InstallationUUID = teleMeta.UUID
 		} // default to false on errors
 	}
 
+	// if mate is not enable, exit immediately
 	if reportEnabled {
 		teleReport.EventUUID = eventUUID
 		teleReport.EventUnixTimestamp = start.Unix()
-		teleReport.Version = telemetry.TiUPMeta()
-		teleReport.Version.TiUPVersion = version.NewTiUPVersion().SemVer()
-		tiupReport.Command = teleCommand
-		tiupReport.CustomMirror = env.Profile().Config.Mirror != repository.DefaultMirror
+		teleReport.Version = telemetry.TiUPMeta()                                         // tiup mate include tiup version and runtime info
+		teleReport.Version.TiUPVersion = version.NewTiUPVersion().SemVer()                // tiup version like 1.6.1
+		tiupReport.Command = teleCommand                                                  // tiup(full_path) [componentSpec]
+		tiupReport.CustomMirror = env.Profile().Config.Mirror != repository.DefaultMirror // if CustomMirror is true, means that a customized image is used
+
+		// tag: Specify a tag for component instance
 		if tag != "" {
-			tiupReport.Tag = telemetry.SaltedHash(tag)
+			tiupReport.Tag = telemetry.SaltedHash(tag) // hash tag
 		}
 
 		f := func() {
+
+			// recover
 			defer func() {
 				if r := recover(); r != nil {
+					// if use dugmode, will print log
 					if environment.DebugMode {
 						log.Debugf("Recovered in telemetry report: %v", r)
 					}
 				}
 			}()
 
-			tiupReport.ExitCode = int32(code)
+			tiupReport.ExitCode = int32(code) // init 0
 			tiupReport.TakeMilliseconds = uint64(time.Since(start).Milliseconds())
+
+			// set timeout context
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
-			tele := telemetry.NewTelemetry()
-			err := tele.Report(ctx, teleReport)
+			tele := telemetry.NewTelemetry() // create http client
+
+			err := tele.Report(ctx, teleReport) // use http post request to telemetry
+
+			// use debug mode
+			// print some error information to log
 			if environment.DebugMode {
 				if err != nil {
 					log.Infof("report failed: %v", err)
@@ -252,6 +274,8 @@ func Execute() {
 					log.Debugf("report: %s\n", string(data))
 				}
 			}
+
+			// cancel context
 			cancel()
 		}
 

@@ -63,11 +63,13 @@ func Initialize(base string) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
+		// default: ~/.tiup/storage/cluster
 		profileDir = path.Join(homeDir, ".tiup", tiuplocaldata.StorageParentDir, base)
 	} else {
 		profileDir = tiupData
 	}
 
+	// default: ~/.tiup/storage/cluster/clusters
 	clusterBaseDir := filepath.Join(profileDir, TiUPClusterDir)
 	tidbSpec = NewSpec(clusterBaseDir, func() Metadata {
 		return &ClusterMeta{

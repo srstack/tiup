@@ -87,12 +87,15 @@ func InitEnv(options repository.Options) (*Environment, error) {
 	}
 
 	initRepo := time.Now()
+	//
 	profile := localdata.InitProfile()
 
 	// Initialize the repository
 	// Replace the mirror if some sub-commands use different mirror address
 	mirrorAddr := Mirror()
+	// create new mirror localmirror or httpMirror
 	mirror := repository.NewMirror(mirrorAddr, repository.MirrorOptions{})
+	// open mirror directory
 	if err := mirror.Open(); err != nil {
 		return nil, err
 	}
@@ -100,11 +103,14 @@ func InitEnv(options repository.Options) (*Environment, error) {
 	var v1repo *repository.V1Repository
 	var err error
 
+	// create new mainfests
 	var local v1manifest.LocalManifests
 	local, err = v1manifest.NewManifests(profile)
 	if err != nil {
 		return nil, errors.Annotatef(err, "initial repository from mirror(%s) failed", mirrorAddr)
 	}
+
+	// create new mirror repository
 	v1repo = repository.NewV1Repo(mirror, options, local)
 
 	log.Verbose("Initialize repository finished in %s", time.Since(initRepo))
@@ -187,6 +193,8 @@ func (env *Environment) downloadComponent(component string, version utils.Versio
 // SelectInstalledVersion selects the installed versions and the latest release version
 // will be chosen if there is an empty version
 func (env *Environment) SelectInstalledVersion(component string, ver utils.Version) (utils.Version, error) {
+
+	// installed: [version1, version2, version3]
 	installed, err := env.Profile().InstalledVersions(component)
 	if err != nil {
 		return ver, err
@@ -209,6 +217,8 @@ func (env *Environment) SelectInstalledVersion(component string, ver utils.Versi
 		}
 		versions = append(versions, v)
 	}
+
+	// sort version
 	// Reverse sort: v5.0.0-rc,v5.0.0-nightly-20210305,v4.0.11
 	sort.Slice(versions, func(i, j int) bool {
 		return semver.Compare(versions[i], versions[j]) > 0
@@ -216,6 +226,7 @@ func (env *Environment) SelectInstalledVersion(component string, ver utils.Versi
 
 	errInstallFirst := errors.Annotatef(ErrInstallFirst, "use `tiup install %s` to install component `%s` first", component, component)
 
+	// not select version or seletc night var
 	if ver.IsEmpty() || string(ver) == utils.NightlyVersionAlias {
 		var selected utils.Version
 		for _, v := range versions {
@@ -224,13 +235,17 @@ func (env *Environment) SelectInstalledVersion(component string, ver utils.Versi
 			}
 			// select prerelease version when there is only prelease version on local
 			if selected.IsEmpty() {
+				// select the first(lastest) version in versions
 				selected = utils.Version(v)
 			}
 		}
+
+		// double check
 		if !selected.IsEmpty() {
 			return selected, nil
 		}
 	} else {
+		// get the selected version in installed version list
 		for _, v := range versions {
 			if utils.Version(v) == ver {
 				return ver, nil
@@ -254,6 +269,8 @@ func (env *Environment) DownloadComponentIfMissing(component string, ver utils.V
 
 	// Check whether the specific version exist in local
 	ver, err = env.SelectInstalledVersion(component, ver)
+
+	// version is not in local
 	needDownload := errors.Cause(err) == ErrInstallFirst
 	if err != nil && !needDownload {
 		return "", err

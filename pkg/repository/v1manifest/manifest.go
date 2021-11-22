@@ -312,6 +312,8 @@ func (manifest *Timestamp) isValid() error {
 
 // SnapshotHash returns the hashes of the snapshot manifest as specified in the timestamp manifest.
 func (manifest *Timestamp) SnapshotHash() FileHash {
+	// /ts.json
+	// {"/snapshot.json":{"hashes":{"sha256":"xxx"},"length":2528}},"spec_version":"0.1.0","version":21116}}
 	return manifest.Meta[ManifestURLSnapshot]
 }
 
@@ -321,6 +323,8 @@ func (manifest *Snapshot) VersionedURL(url string) (string, *FileVersion, error)
 	if !ok {
 		return "", nil, fmt.Errorf("no entry in snapshot manifest for %s", url)
 	}
+
+	// remove /, only need the file name , like /snapshot.json -> snapshot.json
 	lastSlash := strings.LastIndex(url, "/")
 	if lastSlash < 0 {
 		return fmt.Sprintf("%v.%s", entry.Version, url), &entry, nil
@@ -386,7 +390,8 @@ func ReadManifest(input io.Reader, role ValidManifest, keys *KeyStore) (*Manifes
 		return nil, errors.Trace(err)
 	}
 
-	err := keys.verifySignature(rawM.Signed, role.Base().Ty, rawM.Signatures, role.Base().Filename())
+	// verifySignature
+	err := keys.verifySignature(rawM.Signed, role.Base().Ty, rawM.Signatures, role.Base().Filename()) // filename root.json
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -396,6 +401,7 @@ func ReadManifest(input io.Reader, role ValidManifest, keys *KeyStore) (*Manifes
 		Signed:     role,
 	}
 
+	// root.json
 	if role.Base().Ty == ManifestTypeRoot {
 		newRoot := role.(*Root)
 		threshold := newRoot.Roles[ManifestTypeRoot].Threshold
@@ -406,6 +412,7 @@ func ReadManifest(input io.Reader, role ValidManifest, keys *KeyStore) (*Manifes
 		}
 	}
 
+	// check role is valid
 	err = m.Signed.Base().isValid(m.Signed.Filename())
 	if err != nil {
 		return nil, errors.Trace(err)

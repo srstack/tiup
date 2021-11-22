@@ -32,6 +32,7 @@ type Telemetry struct {
 }
 
 // NewTelemetry return a new Telemetry instance.
+// http client  with 10 seconds timeout
 func NewTelemetry() *Telemetry {
 	cli := utils.NewHTTPClient(time.Second*10, nil)
 
@@ -48,6 +49,7 @@ func (t *Telemetry) Report(ctx context.Context, msg *Report) error {
 		return errors.AddStack(err)
 	}
 
+	// http post request to the url
 	if _, err = t.cli.Post(ctx, t.url, bytes.NewReader(dst)); err != nil {
 		return errors.AddStack(err)
 	}

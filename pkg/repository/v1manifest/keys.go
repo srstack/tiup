@@ -68,7 +68,7 @@ func (ki *KeyInfo) ID() (string, error) {
 	value := map[string]string{
 		"public": string(data),
 	}
-
+	
 	payload, err := cjson.Marshal(KeyInfo{
 		Type:   ki.Type,
 		Scheme: ki.Scheme,
