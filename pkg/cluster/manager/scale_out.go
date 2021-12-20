@@ -164,6 +164,10 @@ func (m *Manager) ScaleOut(
 					}
 				}
 			}
+
+			if err := topo.CheckServerConfigs(); err != nil {
+				return err
+			}
 		}
 
 		clusterList, err := m.specManager.GetAllClusters()

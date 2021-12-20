@@ -133,6 +133,9 @@ func (m *Manager) Deploy(
 				return perrs.Errorf("check TiKV label failed, please fix that before continue:\n%s", err)
 			}
 		}
+		if err := topo.CheckServerConfigs(); err != nil {
+			return err
+		}
 	}
 
 	clusterList, err := m.specManager.GetAllClusters()
