@@ -73,6 +73,10 @@ func (m *Manager) Reload(name string, gOpt operator.Options, skipRestart, skipCo
 	topo := metadata.GetTopology()
 	base := metadata.GetBaseMeta()
 
+	if err := topo.(*spec.Specification).CheckServerConfigs(); err != nil {
+		return err
+	}
+
 	uniqueHosts := make(map[string]hostInfo) // host -> ssh-port, os, arch
 	noAgentHosts := set.NewStringSet()
 	topo.IterInstance(func(inst spec.Instance) {

@@ -760,10 +760,12 @@ func (s *Specification) Endpoints(user string) []*scripts.PDScript {
 // CheckServerConfigs check whether the configuration file is legal
 func (s *Specification) CheckServerConfigs() error {
 	// todo add more check
-	pdEnableTTL := s.ServerConfigs.TiKV["storage.enable-ttl"].(bool)
-	if pdEnableTTL {
-		if len(s.TiDBServers) != 0 {
-			return errors.Errorf("When TiKV configuration storage.enable-ttl is true, the mode of TiKV must be Row-KV and cannot run simultaneously with TiDB-Server.")
+	if s.ServerConfigs.TiKV["storage.enable-ttl"] != nil {
+		pdEnableTTL := s.ServerConfigs.TiKV["storage.enable-ttl"].(bool)
+		if pdEnableTTL {
+			if len(s.TiDBServers) != 0 {
+				return errors.Errorf("When TiKV configuration storage.enable-ttl is true, the mode of TiKV must be Row-KV and cannot run simultaneously with TiDB-Server.")
+			}
 		}
 	}
 
