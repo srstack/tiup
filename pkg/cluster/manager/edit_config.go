@@ -139,6 +139,19 @@ func (m *Manager) editTopo(origTopo spec.Topology, data []byte, opt EditConfigOp
 		return nil, nil
 	}
 
+	// check server config
+	if err := newTopo.(*spec.Specification).CheckServerConfigs(); err != nil {
+		fmt.Print(color.RedString("New topology could not be saved: "))
+		m.logger.Errorf("%s", err)
+		if opt.NewTopoFile == "" {
+			if pass, _ := tui.PromptForConfirmNo("Do you want to continue editing? [Y/n]: "); !pass {
+				return m.editTopo(origTopo, newData, opt, skipConfirm)
+			}
+		}
+		m.logger.Infof("Nothing changed.")
+		return nil, nil
+	}
+
 	origData, err := yaml.Marshal(origTopo)
 	if err != nil {
 		return nil, perrs.AddStack(err)
