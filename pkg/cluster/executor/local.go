@@ -44,8 +44,6 @@ func (l *Local) Execute(ctx context.Context, cmd string, sudo bool, timeout ...t
 	// try to acquire root permission
 	if l.Sudo || sudo {
 		cmd = fmt.Sprintf("/usr/bin/sudo -H -u root bash -c 'cd; %s'", cmd)
-	} else {
-		cmd = fmt.Sprintf("/usr/bin/sudo -H -u %s bash -c 'cd; %s'", l.Config.User, cmd)
 	}
 
 	// set a basic PATH in case it's empty on login
