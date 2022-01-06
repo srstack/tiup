@@ -122,10 +122,7 @@ func (m *Manager) CheckCluster(clusterOrTopoName, scaleoutTopo string, opt Check
 		}
 	}
 
-	if err := m.fillHostArchOrOS(sshConnProps, sshProxyProps, &topo, &gOpt, opt.User, spec.FullArchType); err != nil {
-		return err
-	}
-	if err := m.fillHostArchOrOS(sshConnProps, sshProxyProps, &topo, &gOpt, opt.User, spec.FullOSType); err != nil {
+	if err := m.fillHost(sshConnProps, sshProxyProps, &topo, &gOpt, opt.User); err != nil {
 		return err
 	}
 

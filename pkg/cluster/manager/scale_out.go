@@ -126,10 +126,7 @@ func (m *Manager) ScaleOut(
 		}
 	}
 
-	if err := m.fillHostArchOrOS(sshConnProps, sshProxyProps, newPart, &gOpt, opt.User, spec.FullArchType); err != nil {
-		return err
-	}
-	if err := m.fillHostArchOrOS(sshConnProps, sshProxyProps, topo, &gOpt, opt.User, spec.FullOSType); err != nil {
+	if err := m.fillHost(sshConnProps, sshProxyProps, newPart, &gOpt, opt.User); err != nil {
 		return err
 	}
 

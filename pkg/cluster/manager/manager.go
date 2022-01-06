@@ -166,6 +166,18 @@ func (m *Manager) sshTaskBuilder(name string, topo spec.Topology, user string, g
 		), nil
 }
 
+// fillHost full host cpu-arch and kernel-name
+func (m *Manager) fillHost(s, p *tui.SSHConnectionProps, topo spec.Topology, gOpt *operator.Options, user string) error {
+	if err := m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullArchType); err != nil {
+		return err
+	}
+	if err := m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullOSType); err != nil {
+		return err
+	}
+	return nil
+}
+
+// fillHostArchOrOS full host cpu-arch or kernel-name
 func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topology, gOpt *operator.Options, user string, fullType spec.FullHostType) error {
 	globalSSHType := topo.BaseTopo().GlobalOptions.SSHType
 	hostArchOrOS := map[string]string{}
