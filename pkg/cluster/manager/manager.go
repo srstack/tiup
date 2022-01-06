@@ -171,10 +171,7 @@ func (m *Manager) fillHost(s, p *tui.SSHConnectionProps, topo spec.Topology, gOp
 	if err := m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullArchType); err != nil {
 		return err
 	}
-	if err := m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullOSType); err != nil {
-		return err
-	}
-	return nil
+	return m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullOSType)
 }
 
 // fillHostArchOrOS full host cpu-arch or kernel-name
