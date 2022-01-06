@@ -45,12 +45,13 @@ func (m *Shell) Execute(ctx context.Context) error {
 	if m.cmdID != "" {
 		outputID = m.cmdID
 	}
+
 	ctxt.GetInner(ctx).SetOutputs(outputID, stdout, stderr)
 	if err != nil {
 		return errors.Trace(err)
 	}
 
-	return nil
+	return fmt.Errorf("cmd %s output %s", m.command, string(stdout))
 }
 
 // Rollback implements the Task interface

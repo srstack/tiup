@@ -166,42 +166,36 @@ func (m *Manager) sshTaskBuilder(name string, topo spec.Topology, user string, g
 		), nil
 }
 
-func (m *Manager) fillHostArch(s, p *tui.SSHConnectionProps, topo spec.Topology, gOpt *operator.Options, user string) error {
+func (m *Manager) fillHostArchOrOS(p *tui.SSHConnectionProps, topo spec.Topology, gOpt *operator.Options, user string, fullType spec.FullHostType) error {
 	globalSSHType := topo.BaseTopo().GlobalOptions.SSHType
-	hostArch := map[string]string{}
+	hostArchOrOS := map[string]string{}
 	var detectTasks []*task.StepDisplay
-	topo.IterInstance(func(inst spec.Instance) {
-		if inst.Arch() != "" {
-			return
-		}
-		if _, ok := hostArch[inst.GetHost()]; ok {
-			return
-		}
-		hostArch[inst.GetHost()] = ""
 
-		tf := task.NewBuilder(m.logger).
-			RootSSH(
-				inst.GetHost(),
-				inst.GetSSHPort(),
-				user,
-				s.Password,
-				s.IdentityFile,
-				s.IdentityFilePassphrase,
-				gOpt.SSHTimeout,
-				gOpt.OptTimeout,
-				gOpt.SSHProxyHost,
-				gOpt.SSHProxyPort,
-				gOpt.SSHProxyUser,
-				p.Password,
-				p.IdentityFile,
-				p.IdentityFilePassphrase,
-				gOpt.SSHProxyTimeout,
-				gOpt.SSHType,
-				globalSSHType,
-			).
-			Shell(inst.GetHost(), "uname -m", "", false).
-			BuildAsStep(fmt.Sprintf("  - Detecting node %s", inst.GetHost()))
-		detectTasks = append(detectTasks, tf)
+	topo.IterInstance(func(inst spec.Instance) {
+		if fullType == spec.FullOSType {
+			if inst.OS() != "" {
+				return
+			}
+		} else {
+			if inst.Arch() != "" {
+				return
+			}
+		}
+
+		if _, ok := hostArchOrOS[inst.GetHost()]; ok {
+			return
+		}
+		hostArchOrOS[inst.GetHost()] = ""
+
+		tf := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), user, *gOpt, p, globalSSHType)
+
+		switch fullType {
+		case spec.FullOSType:
+			tf = tf.Shell(inst.GetHost(), "uname -s", "", false)
+		default:
+			tf = tf.Shell(inst.GetHost(), "uname -a", "", false)
+		}
+		detectTasks = append(detectTasks, tf.BuildAsStep(fmt.Sprintf("  - Detecting node %s %s info", inst.GetHost(), string(fullType))))
 	})
 	if len(detectTasks) == 0 {
 		return nil
@@ -213,19 +207,20 @@ func (m *Manager) fillHostArch(s, p *tui.SSHConnectionProps, topo spec.Topology,
 		m.logger,
 	)
 	t := task.NewBuilder(m.logger).
-		ParallelStep("+ Detect CPU Arch", false, detectTasks...).
+		ParallelStep("+ Detect CPU Arch Or Kernel Name", false, detectTasks...).
 		Build()
 
 	if err := t.Execute(ctx); err != nil {
-		return perrs.Annotate(err, "failed to fetch cpu arch")
+		return perrs.Annotate(err, "failed to fetch cpu-arch or kernel-name")
 	}
 
-	for host := range hostArch {
+	for host := range hostArchOrOS {
 		stdout, _, ok := ctxt.GetInner(ctx).GetOutputs(host)
 		if !ok {
 			return fmt.Errorf("no check results found for %s", host)
 		}
-		hostArch[host] = strings.Trim(string(stdout), "\n")
+		hostArchOrOS[host] = strings.Trim(string(stdout), "\n")
+		// fmt.Println(strings.Trim(string(stdout), "\n"))
 	}
-	return topo.FillHostArch(hostArch)
+	return topo.FillHostArchOrOS(hostArchOrOS, fullType)
 }
