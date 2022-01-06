@@ -212,7 +212,7 @@ func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topol
 		case spec.FullOSType:
 			tf = tf.Shell(inst.GetHost(), "uname -s", "", false)
 		default:
-			tf = tf.Shell(inst.GetHost(), "uname -a", "", false)
+			tf = tf.Shell(inst.GetHost(), "uname -m", "", false)
 		}
 		detectTasks = append(detectTasks, tf.BuildAsStep(fmt.Sprintf("  - Detecting node %s %s info", inst.GetHost(), string(fullType))))
 	})
