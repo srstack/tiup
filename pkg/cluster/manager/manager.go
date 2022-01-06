@@ -166,7 +166,7 @@ func (m *Manager) sshTaskBuilder(name string, topo spec.Topology, user string, g
 		), nil
 }
 
-func (m *Manager) fillHostArchOrOS(p *tui.SSHConnectionProps, topo spec.Topology, gOpt *operator.Options, user string, fullType spec.FullHostType) error {
+func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topology, gOpt *operator.Options, user string, fullType spec.FullHostType) error {
 	globalSSHType := topo.BaseTopo().GlobalOptions.SSHType
 	hostArchOrOS := map[string]string{}
 	var detectTasks []*task.StepDisplay
@@ -187,8 +187,27 @@ func (m *Manager) fillHostArchOrOS(p *tui.SSHConnectionProps, topo spec.Topology
 		}
 		hostArchOrOS[inst.GetHost()] = ""
 
-		tf := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), user, *gOpt, p, globalSSHType)
-
+		// tf := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), user, *gOpt, p, globalSSHType)
+		tf := task.NewBuilder(m.logger).
+			RootSSH(
+				inst.GetHost(),
+				inst.GetSSHPort(),
+				user,
+				s.Password,
+				s.IdentityFile,
+				s.IdentityFilePassphrase,
+				gOpt.SSHTimeout,
+				gOpt.OptTimeout,
+				gOpt.SSHProxyHost,
+				gOpt.SSHProxyPort,
+				gOpt.SSHProxyUser,
+				p.Password,
+				p.IdentityFile,
+				p.IdentityFilePassphrase,
+				gOpt.SSHProxyTimeout,
+				gOpt.SSHType,
+				globalSSHType,
+			)
 		switch fullType {
 		case spec.FullOSType:
 			tf = tf.Shell(inst.GetHost(), "uname -s", "", false)

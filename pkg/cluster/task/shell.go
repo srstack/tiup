@@ -51,7 +51,7 @@ func (m *Shell) Execute(ctx context.Context) error {
 		return errors.Trace(err)
 	}
 
-	return fmt.Errorf("cmd %s output %s", m.command, string(stdout))
+	return nil
 }
 
 // Rollback implements the Task interface
