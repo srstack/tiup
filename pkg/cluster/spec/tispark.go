@@ -227,7 +227,8 @@ func (i *TiSparkMasterInstance) InitConfig(
 		return errors.Annotatef(err, "transfer from %s to %s failed", sysCfg, tgt)
 	}
 	cmd := fmt.Sprintf("mv %s /etc/systemd/system/%s-%d.service", tgt, comp, port)
-	if _, _, err := e.Execute(ctx, cmd, true); err != nil {
+	// mac os does not  need sudo permissions
+	if _, _, err := e.Execute(ctx, cmd, i.OS() != MacOS); err != nil {
 		return errors.Annotatef(err, "execute: %s", cmd)
 	}
 
@@ -390,7 +391,7 @@ func (i *TiSparkWorkerInstance) InitConfig(
 		return errors.Annotatef(err, "transfer from %s to %s failed", sysCfg, tgt)
 	}
 	cmd := fmt.Sprintf("mv %s /etc/systemd/system/%s-%d.service", tgt, comp, port)
-	if _, _, err := e.Execute(ctx, cmd, true); err != nil {
+	if _, _, err := e.Execute(ctx, cmd, i.OS() != MacOS); err != nil {
 		return errors.Annotatef(err, "execute: %s", cmd)
 	}
 

@@ -462,7 +462,7 @@ func checkSystemInfo(
 				gOpt.SSHType,
 				topo.GlobalOptions.SSHType,
 			)
-		res, err := handleCheckResults(ctx, host, opt, tf)
+		res, err := handleCheckResults(ctx, host, spec.Linux, opt, tf)
 		if err != nil {
 			continue
 		}
@@ -501,7 +501,7 @@ type HostCheckResult struct {
 }
 
 // handleCheckResults parses the result of checks
-func handleCheckResults(ctx context.Context, host string, opt *CheckOptions, t *task.Builder) ([]HostCheckResult, error) {
+func handleCheckResults(ctx context.Context, host, os string, opt *CheckOptions, t *task.Builder) ([]HostCheckResult, error) {
 	rr, _ := ctxt.GetInner(ctx).GetCheckResults(host)
 	if len(rr) < 1 {
 		return nil, fmt.Errorf("no check results found for %s", host)
@@ -525,7 +525,7 @@ func handleCheckResults(ctx context.Context, host string, opt *CheckOptions, t *
 				items = append(items, item)
 				continue
 			}
-			msg, err := fixFailedChecks(host, r, t)
+			msg, err := fixFailedChecks(host, os, r, t)
 			if err != nil {
 				ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger).
 					Debugf("%s: fail to apply fix to %s (%s)", host, r.Name, err)
@@ -567,7 +567,7 @@ func formatHostCheckResults(results []HostCheckResult) [][]string {
 }
 
 // fixFailedChecks tries to automatically apply changes to fix failed checks
-func fixFailedChecks(host string, res *operator.CheckResult, t *task.Builder) (string, error) {
+func fixFailedChecks(host, os string, res *operator.CheckResult, t *task.Builder) (string, error) {
 	msg := ""
 	switch res.Name {
 	case operator.CheckNameSysService:
@@ -585,14 +585,14 @@ func fixFailedChecks(host string, res *operator.CheckResult, t *task.Builder) (s
 		if len(fields) < 3 {
 			return "", fmt.Errorf("can not set kernel parameter, %s", res.Msg)
 		}
-		t.Sysctl(host, fields[0], fields[2])
+		t.Sysctl(host, fields[0], fields[2], os)
 		msg = fmt.Sprintf("will try to set '%s'", color.HiBlueString(res.Msg))
 	case operator.CheckNameLimits:
 		fields := strings.Fields(res.Msg)
 		if len(fields) < 4 {
 			return "", fmt.Errorf("can not set limits, %s", res.Msg)
 		}
-		t.Limit(host, fields[0], fields[1], fields[2], fields[3])
+		t.Limit(host, fields[0], fields[1], fields[2], fields[3], os)
 		msg = fmt.Sprintf("will try to set '%s'", color.HiBlueString(res.Msg))
 	case operator.CheckNameSELinux:
 		t.Shell(host,

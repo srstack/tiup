@@ -20,6 +20,7 @@ import (
 
 	"github.com/pingcap/errors"
 	"github.com/pingcap/tiup/pkg/cluster/ctxt"
+	"github.com/pingcap/tiup/pkg/cluster/spec"
 )
 
 var (
@@ -31,6 +32,7 @@ type Sysctl struct {
 	host string
 	key  string
 	val  string
+	os   string
 }
 
 // Execute implements the Task interface
@@ -47,7 +49,7 @@ func (s *Sysctl) Execute(ctx context.Context) error {
 		fmt.Sprintf("sysctl -p %s", sysctlFilePath),
 	}, " && ")
 
-	stdout, stderr, err := e.Execute(ctx, cmd, true)
+	stdout, stderr, err := e.Execute(ctx, cmd, s.os != spec.MacOS)
 	ctxt.GetInner(ctx).SetOutputs(s.host, stdout, stderr)
 	if err != nil {
 		return errors.Trace(err)

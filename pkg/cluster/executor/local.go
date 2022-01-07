@@ -66,7 +66,6 @@ func (l *Local) Execute(ctx context.Context, cmd string, sudo bool, timeout ...t
 	}
 
 	command := exec.CommandContext(ctx, "/bin/sh", "-c", cmd)
-
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	command.Stdout = stdout

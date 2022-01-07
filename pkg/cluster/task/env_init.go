@@ -23,6 +23,7 @@ import (
 	"github.com/pingcap/tiup/pkg/cluster/ctxt"
 	"github.com/pingcap/tiup/pkg/cluster/executor"
 	"github.com/pingcap/tiup/pkg/cluster/module"
+	"github.com/pingcap/tiup/pkg/cluster/spec"
 )
 
 var (
@@ -40,7 +41,7 @@ type EnvInit struct {
 	deployUser     string
 	userGroup      string
 	skipCreateUser bool
-	su             bool
+	os             string
 }
 
 // Execute implements the Task interface
@@ -65,7 +66,6 @@ func (e *EnvInit) execute(ctx context.Context) error {
 			Group:  e.userGroup,
 			Sudoer: true,
 		})
-
 		_, _, errx := um.Execute(ctx, exec)
 		if errx != nil {
 			return wrapError(errx)
@@ -79,25 +79,32 @@ func (e *EnvInit) execute(ctx context.Context) error {
 
 	// Authorize
 	cmd := "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
-	if e.su {
+	// // mac os does not  need su
+	if e.os != spec.MacOS {
 		cmd = fmt.Sprintf(`su - %s -c '%s'`,
 			e.deployUser, cmd)
 	}
-	_, _, err = exec.Execute(ctx, cmd, true)
+
+	// mac os does not  need sudo permissions
+	_, _, err = exec.Execute(ctx, cmd, e.os != spec.MacOS)
 	if err != nil {
 		return wrapError(errEnvInitSubCommandFailed.
 			Wrap(err, "Failed to create '~/.ssh' directory for user '%s'", e.deployUser))
 	}
 
 	pk := strings.TrimSpace(string(pubKey))
-	sshAuthorizedKeys := executor.FindSSHAuthorizedKeysFile(ctx, exec)
+	sshAuthorizedKeys := executor.FindSSHAuthorizedKeysFile(ctx, exec, e.os != spec.MacOS)
 	cmd = fmt.Sprintf(`grep $(echo %[1]s) %[2]s || echo %[1]s >> %[2]s && chmod 600 %[2]s`,
 		pk, sshAuthorizedKeys)
-	if e.su {
+
+	// mac os does not need su
+	if e.os != spec.MacOS {
 		cmd = fmt.Sprintf(`su - %s -c '%s'`,
 			e.deployUser, cmd)
 	}
-	_, _, err = exec.Execute(ctx, cmd, true)
+
+	// mac os does not  need sudo permissions
+	_, _, err = exec.Execute(ctx, cmd, e.os != spec.MacOS)
 	if err != nil {
 		return wrapError(errEnvInitSubCommandFailed.
 			Wrap(err, "Failed to write public keys to '%s' for user '%s'", sshAuthorizedKeys, e.deployUser))

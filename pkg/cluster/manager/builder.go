@@ -142,9 +142,9 @@ func buildScaleOutTask(
 		}
 		// Deploy component
 		tb := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), base.User, gOpt, p, sshType).
-			Mkdir(base.User, inst.GetHost(), deployDirs...).
-			Mkdir(base.User, inst.GetHost(), dataDirs...).
-			Mkdir(base.User, inst.GetHost(), logDir)
+			Mkdir(base.User, inst.GetHost(), inst.OS(), deployDirs...).
+			Mkdir(base.User, inst.GetHost(), inst.OS(), dataDirs...).
+			Mkdir(base.User, inst.GetHost(), inst.OS(), logDir)
 
 		srcPath := ""
 		if patchedComponents.Exist(inst.ComponentName()) {
@@ -369,7 +369,6 @@ func buildEnvInitTasks(
 	metadata spec.Metadata,
 	opt DeployOptions,
 	gOpt operator.Options,
-
 	s, p *tui.SSHConnectionProps,
 	uniqueHosts map[string]hostInfo) []*task.StepDisplay {
 	var (
@@ -377,7 +376,6 @@ func buildEnvInitTasks(
 		envInitTasks []*task.StepDisplay
 	)
 
-	//
 	globalOptions := metadata.GetTopology().BaseTopo().GlobalOptions
 
 	for host, hostInfo := range uniqueHosts {
@@ -394,30 +392,34 @@ func buildEnvInitTasks(
 			dirs = append(dirs, globalOptions.DataDir)
 		}
 
-		t := task.NewBuilder(m.logger).
-			RootSSH(
-				host,
-				hostInfo.ssh,
-				opt.User,
-				s.Password,
-				s.IdentityFile,
-				s.IdentityFilePassphrase,
-				gOpt.SSHTimeout,
-				gOpt.OptTimeout,
-				gOpt.SSHProxyHost,
-				gOpt.SSHProxyPort,
-				gOpt.SSHProxyUser,
-				p.Password,
-				p.IdentityFile,
-				p.IdentityFilePassphrase,
-				gOpt.SSHProxyTimeout,
-				gOpt.SSHType,
-				globalOptions.SSHType,
-			).
-			EnvInit(host, globalOptions.User, globalOptions.Group, opt.SkipCreateUser || globalOptions.User == opt.User, hostInfo.os != spec.MacOS).
-			Mkdir(globalOptions.User, host, dirs...).
+		t := task.NewSimpleUerSSH(m.logger, host, hostInfo.ssh, globalOptions.User, gOpt, p, globalOptions.SSHType)
+		if s.Password != "" {
+			t = task.NewBuilder(m.logger).
+				RootSSH(
+					host,
+					hostInfo.ssh,
+					opt.User,
+					s.Password,
+					s.IdentityFile,
+					s.IdentityFilePassphrase,
+					gOpt.SSHTimeout,
+					gOpt.OptTimeout,
+					gOpt.SSHProxyHost,
+					gOpt.SSHProxyPort,
+					gOpt.SSHProxyUser,
+					p.Password,
+					p.IdentityFile,
+					p.IdentityFilePassphrase,
+					gOpt.SSHProxyTimeout,
+					gOpt.SSHType,
+					globalOptions.SSHType,
+				)
+		}
+
+		tb := t.EnvInit(host, globalOptions.User, globalOptions.Group, hostInfo.os, opt.SkipCreateUser || globalOptions.User == opt.User).
+			Mkdir(globalOptions.User, host, hostInfo.os, dirs...).
 			BuildAsStep(fmt.Sprintf("  - Initialized host %s ", host))
-		envInitTasks = append(envInitTasks, t)
+		envInitTasks = append(envInitTasks, tb)
 	}
 
 	return envInitTasks
@@ -484,7 +486,7 @@ func buildMonitoredDeployTask(
 
 			// Deploy component
 			tb := task.NewSimpleUerSSH(m.logger, host, info.ssh, globalOptions.User, gOpt, p, globalOptions.SSHType).
-				Mkdir(globalOptions.User, host, deployDirs...).
+				Mkdir(globalOptions.User, host, info.os, deployDirs...).
 				CopyComponent(
 					comp,
 					info.os,

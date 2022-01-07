@@ -20,6 +20,7 @@ import (
 
 	"github.com/pingcap/errors"
 	"github.com/pingcap/tiup/pkg/cluster/ctxt"
+	"github.com/pingcap/tiup/pkg/cluster/spec"
 )
 
 var (
@@ -33,6 +34,7 @@ type Limit struct {
 	limit  string // limit type
 	item   string
 	value  string
+	os     string
 }
 
 // Execute implements the Task interface
@@ -49,8 +51,8 @@ func (l *Limit) Execute(ctx context.Context) error {
 		fmt.Sprintf("echo '%s    %s    %s    %s' >> %s",
 			l.domain, l.limit, l.item, l.value, limitsFilePath),
 	}, " && ")
-
-	stdout, stderr, err := e.Execute(ctx, cmd, true)
+	// mac os does not  need sudo permissions
+	stdout, stderr, err := e.Execute(ctx, cmd, l.os != spec.MacOS)
 	ctxt.GetInner(ctx).SetOutputs(l.host, stdout, stderr)
 	if err != nil {
 		return errors.Trace(err)

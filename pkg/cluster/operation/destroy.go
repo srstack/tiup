@@ -45,8 +45,16 @@ func Destroy(
 	coms := cluster.ComponentsByStopOrder()
 
 	instCount := map[string]int{}
+
+	// determine the need for sudo permissions
+	sudo := true
 	cluster.IterInstance(func(inst spec.Instance) {
 		instCount[inst.GetHost()]++
+
+		// MacOS does not need sudo permissions
+		if sudo && inst.OS() != spec.MacOS {
+			sudo = false
+		}
 	})
 
 	for _, com := range coms {
@@ -78,7 +86,7 @@ func Destroy(
 
 	// after all things done, try to remove SSH public key
 	for host := range instCount {
-		if err := DeletePublicKey(ctx, host); err != nil {
+		if err := DeletePublicKey(ctx, host, sudo); err != nil {
 			return nil
 		}
 	}
@@ -134,7 +142,7 @@ func StopAndDestroyInstance(ctx context.Context, cluster spec.Topology, instance
 			}
 		}
 
-		if err := DeletePublicKey(ctx, instance.GetHost()); err != nil {
+		if err := DeletePublicKey(ctx, instance.GetHost(), instance.OS() != spec.MacOS); err != nil {
 			if !ignoreErr {
 				return errors.Annotatef(err, "failed to delete public key")
 			}
@@ -186,7 +194,7 @@ func DeleteGlobalDirs(ctx context.Context, host string, options *spec.GlobalOpti
 }
 
 // DeletePublicKey deletes the SSH public key from host
-func DeletePublicKey(ctx context.Context, host string) error {
+func DeletePublicKey(ctx context.Context, host string, sudo bool) error {
 	e := ctxt.GetInner(ctx).Get(host)
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	logger.Infof("Delete public key %s", host)
@@ -198,7 +206,7 @@ func DeletePublicKey(ctx context.Context, host string) error {
 
 	pubKey := string(bytes.TrimSpace(publicKey))
 	pubKey = strings.ReplaceAll(pubKey, "/", "\\/")
-	pubKeysFile := executor.FindSSHAuthorizedKeysFile(ctx, e)
+	pubKeysFile := executor.FindSSHAuthorizedKeysFile(ctx, e, sudo)
 
 	// delete the public key with Linux `sed` toolkit
 	c := module.ShellModuleConfig{

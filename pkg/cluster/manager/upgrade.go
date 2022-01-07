@@ -118,7 +118,7 @@ func (m *Manager) Upgrade(name string, clusterVersion string, opt operator.Optio
 
 			// for some component, dataDirs might need to be created due to upgrade
 			// eg: TiCDC support DataDir since v4.0.13
-			tb = tb.Mkdir(topo.BaseTopo().GlobalOptions.User, inst.GetHost(), dataDirs...)
+			tb = tb.Mkdir(topo.BaseTopo().GlobalOptions.User, inst.GetHost(), inst.OS(), dataDirs...)
 
 			if inst.IsImported() {
 				switch inst.ComponentName() {

@@ -20,6 +20,7 @@ import (
 
 	"github.com/pingcap/errors"
 	"github.com/pingcap/tiup/pkg/cluster/ctxt"
+	"github.com/pingcap/tiup/pkg/cluster/spec"
 )
 
 // Mkdir is used to create directory on the target host
@@ -27,6 +28,7 @@ type Mkdir struct {
 	user string
 	host string
 	dirs []string
+	os   string
 }
 
 // Execute implements the Task interface
@@ -58,7 +60,9 @@ func (m *Mkdir) Execute(ctx context.Context) error {
 				strings.Join(xs[:i+1], "/"),
 				m.user,
 			)
-			_, _, err := exec.Execute(ctx, cmd, true) // use root to create the dir
+
+			// mac os not need sudo permissions
+			_, _, err := exec.Execute(ctx, cmd, m.os != spec.MacOS) // use root to create the dir
 			if err != nil {
 				return errors.Trace(err)
 			}

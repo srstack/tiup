@@ -301,13 +301,13 @@ func (b *Builder) SSHKeySet(privKeyPath, pubKeyPath string) *Builder {
 }
 
 // EnvInit appends a EnvInit task to the current task collection
-func (b *Builder) EnvInit(host, deployUser string, userGroup string, skipCreateUser, su bool) *Builder {
+func (b *Builder) EnvInit(host, deployUser string, userGroup, os string, skipCreateUser bool) *Builder {
 	b.tasks = append(b.tasks, &EnvInit{
 		host:           host,
 		deployUser:     deployUser,
 		userGroup:      userGroup,
 		skipCreateUser: skipCreateUser,
-		su:             su,
+		os:             os,
 	})
 	return b
 }
@@ -331,11 +331,12 @@ func (b *Builder) ClusterOperate(
 }
 
 // Mkdir appends a Mkdir task to the current task collection
-func (b *Builder) Mkdir(user, host string, dirs ...string) *Builder {
+func (b *Builder) Mkdir(user, host, os string, dirs ...string) *Builder {
 	b.tasks = append(b.tasks, &Mkdir{
 		user: user,
 		host: host,
 		dirs: dirs,
+		os:   os,
 	})
 	return b
 }
@@ -372,23 +373,25 @@ func (b *Builder) SystemCtl(host, unit, action string, daemonReload bool) *Build
 }
 
 // Sysctl set a kernel parameter
-func (b *Builder) Sysctl(host, key, val string) *Builder {
+func (b *Builder) Sysctl(host, key, val, os string) *Builder {
 	b.tasks = append(b.tasks, &Sysctl{
 		host: host,
 		key:  key,
 		val:  val,
+		os:   os,
 	})
 	return b
 }
 
 // Limit set a system limit
-func (b *Builder) Limit(host, domain, limit, item, value string) *Builder {
+func (b *Builder) Limit(host, domain, limit, item, value, os string) *Builder {
 	b.tasks = append(b.tasks, &Limit{
 		host:   host,
 		domain: domain,
 		limit:  limit,
 		item:   item,
 		value:  value,
+		os:     os,
 	})
 	return b
 }

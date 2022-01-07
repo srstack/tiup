@@ -151,7 +151,7 @@ func checkLocalIP(ip string) error {
 }
 
 // FindSSHAuthorizedKeysFile finds the correct path of SSH authorized keys file
-func FindSSHAuthorizedKeysFile(ctx context.Context, exec ctxt.Executor) string {
+func FindSSHAuthorizedKeysFile(ctx context.Context, exec ctxt.Executor, sudo bool) string {
 	// detect if custom path of authorized keys file is set
 	// NOTE: we do not yet support:
 	//   - custom config for user (~/.ssh/config)
@@ -159,7 +159,8 @@ func FindSSHAuthorizedKeysFile(ctx context.Context, exec ctxt.Executor) string {
 	//   - ssh server implementations other than OpenSSH (such as dropbear)
 	sshAuthorizedKeys := defaultSSHAuthorizedKeys
 	cmd := "grep -Ev '^\\s*#|^\\s*$' /etc/ssh/sshd_config"
-	stdout, _, _ := exec.Execute(ctx, cmd, true) // error ignored as we have default value
+
+	stdout, _, _ := exec.Execute(ctx, cmd, sudo) // error ignored as we have default value
 	for _, line := range strings.Split(string(stdout), "\n") {
 		if !strings.Contains(line, "AuthorizedKeysFile") {
 			continue
