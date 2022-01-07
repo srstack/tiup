@@ -196,27 +196,30 @@ func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topol
 		}
 		hostArchOrOS[inst.GetHost()] = ""
 
-		// tf := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), user, *gOpt, p, globalSSHType)
-		tf := task.NewBuilder(m.logger).
-			RootSSH(
-				inst.GetHost(),
-				inst.GetSSHPort(),
-				user,
-				s.Password,
-				s.IdentityFile,
-				s.IdentityFilePassphrase,
-				gOpt.SSHTimeout,
-				gOpt.OptTimeout,
-				gOpt.SSHProxyHost,
-				gOpt.SSHProxyPort,
-				gOpt.SSHProxyUser,
-				p.Password,
-				p.IdentityFile,
-				p.IdentityFilePassphrase,
-				gOpt.SSHProxyTimeout,
-				gOpt.SSHType,
-				globalSSHType,
-			)
+		tf := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), user, *gOpt, p, globalSSHType)
+		if s.Password != "" {
+			tf = task.NewBuilder(m.logger).
+				RootSSH(
+					inst.GetHost(),
+					inst.GetSSHPort(),
+					user,
+					s.Password,
+					s.IdentityFile,
+					s.IdentityFilePassphrase,
+					gOpt.SSHTimeout,
+					gOpt.OptTimeout,
+					gOpt.SSHProxyHost,
+					gOpt.SSHProxyPort,
+					gOpt.SSHProxyUser,
+					p.Password,
+					p.IdentityFile,
+					p.IdentityFilePassphrase,
+					gOpt.SSHProxyTimeout,
+					gOpt.SSHType,
+					globalSSHType,
+				)
+		}
+
 		switch fullType {
 		case spec.FullOSType:
 			tf = tf.Shell(inst.GetHost(), "uname -s", "", false)
