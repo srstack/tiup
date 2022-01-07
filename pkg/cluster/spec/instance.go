@@ -63,11 +63,12 @@ var (
 	)
 )
 
-// const (
-// 	// os type
-// 	MacOS = "darwin"
-// 	Linux = "linux"
-// )
+const (
+	// MacOS os type
+	MacOS = "darwin"
+	// Linux os type
+	Linux = "linux"
+)
 
 // Component represents a component of the cluster.
 type Component interface {

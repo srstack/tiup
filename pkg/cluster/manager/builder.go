@@ -75,7 +75,6 @@ func buildScaleOutTask(
 	final func(b *task.Builder, name string, meta spec.Metadata, gOpt operator.Options),
 ) (task.Task, error) {
 	var (
-		envInitTasks      []*task.StepDisplay // tasks which are used to initialize environment
 		downloadCompTasks []*task.StepDisplay // tasks which are used to download components
 		deployCompTasks   []*task.StepDisplay // tasks which are used to copy components to remote host
 	)
@@ -110,43 +109,9 @@ func buildScaleOutTask(
 			os:   instance.OS(),
 			arch: instance.Arch(),
 		}
-
-		var dirs []string
-		globalOptions := metadata.GetTopology().BaseTopo().GlobalOptions
-		for _, dir := range []string{globalOptions.DeployDir, globalOptions.DataDir, globalOptions.LogDir} {
-			for _, dirname := range strings.Split(dir, ",") {
-				if dirname == "" {
-					continue
-				}
-				dirs = append(dirs, spec.Abs(globalOptions.User, dirname))
-			}
-		}
-
-		t := task.NewBuilder(m.logger).
-			RootSSH(
-				instance.GetHost(),
-				instance.GetSSHPort(),
-				opt.User,
-				s.Password,
-				s.IdentityFile,
-				s.IdentityFilePassphrase,
-				gOpt.SSHTimeout,
-				gOpt.OptTimeout,
-				gOpt.SSHProxyHost,
-				gOpt.SSHProxyPort,
-				gOpt.SSHProxyUser,
-				p.Password,
-				p.IdentityFile,
-				p.IdentityFilePassphrase,
-				gOpt.SSHProxyTimeout,
-				gOpt.SSHType,
-				globalOptions.SSHType,
-			).
-			EnvInit(instance.GetHost(), base.User, base.Group, opt.SkipCreateUser || globalOptions.User == opt.User).
-			Mkdir(globalOptions.User, instance.GetHost(), dirs...).
-			BuildAsStep(fmt.Sprintf("  - Initialized host %s ", host))
-		envInitTasks = append(envInitTasks, t)
 	})
+	// tasks which are used to initialize environment
+	envInitTasks := buildEnvInitTasks(m, name, metadata, opt, gOpt, s, p, uninitializedHosts)
 
 	// Download missing component
 	downloadCompTasks = buildDownloadCompTasks(
@@ -395,6 +360,67 @@ func buildScaleConfigTasks(
 	})
 
 	return scaleConfigTasks
+}
+
+// buildEnvInitTasks  init remote host environment
+func buildEnvInitTasks(
+	m *Manager,
+	name string,
+	metadata spec.Metadata,
+	opt DeployOptions,
+	gOpt operator.Options,
+
+	s, p *tui.SSHConnectionProps,
+	uniqueHosts map[string]hostInfo) []*task.StepDisplay {
+	var (
+		// tasks which are used to initialize environment
+		envInitTasks []*task.StepDisplay
+	)
+
+	//
+	globalOptions := metadata.GetTopology().BaseTopo().GlobalOptions
+
+	for host, hostInfo := range uniqueHosts {
+		var dirs []string
+		for _, dir := range []string{globalOptions.DeployDir, globalOptions.LogDir} {
+			if dir == "" {
+				continue
+			}
+
+			dirs = append(dirs, spec.Abs(globalOptions.User, dir))
+		}
+		// the default, relative path of data dir is under deploy dir
+		if strings.HasPrefix(globalOptions.DataDir, "/") {
+			dirs = append(dirs, globalOptions.DataDir)
+		}
+
+		t := task.NewBuilder(m.logger).
+			RootSSH(
+				host,
+				hostInfo.ssh,
+				opt.User,
+				s.Password,
+				s.IdentityFile,
+				s.IdentityFilePassphrase,
+				gOpt.SSHTimeout,
+				gOpt.OptTimeout,
+				gOpt.SSHProxyHost,
+				gOpt.SSHProxyPort,
+				gOpt.SSHProxyUser,
+				p.Password,
+				p.IdentityFile,
+				p.IdentityFilePassphrase,
+				gOpt.SSHProxyTimeout,
+				gOpt.SSHType,
+				globalOptions.SSHType,
+			).
+			EnvInit(host, globalOptions.User, globalOptions.Group, opt.SkipCreateUser || globalOptions.User == opt.User, hostInfo.os != spec.MacOS).
+			Mkdir(globalOptions.User, host, dirs...).
+			BuildAsStep(fmt.Sprintf("  - Initialized host %s ", host))
+		envInitTasks = append(envInitTasks, t)
+	}
+
+	return envInitTasks
 }
 
 type hostInfo struct {

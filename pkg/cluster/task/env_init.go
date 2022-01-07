@@ -40,6 +40,7 @@ type EnvInit struct {
 	deployUser     string
 	userGroup      string
 	skipCreateUser bool
+	su             bool
 }
 
 // Execute implements the Task interface
@@ -77,7 +78,11 @@ func (e *EnvInit) execute(ctx context.Context) error {
 	}
 
 	// Authorize
-	cmd := `su - ` + e.deployUser + ` -c 'mkdir -p ~/.ssh && chmod 700 ~/.ssh'`
+	cmd := "mkdir -p ~/.ssh && chmod 700 ~/.ssh"
+	if e.su {
+		cmd = fmt.Sprintf(`su - %s -c '%s'`,
+			e.deployUser, cmd)
+	}
 	_, _, err = exec.Execute(ctx, cmd, true)
 	if err != nil {
 		return wrapError(errEnvInitSubCommandFailed.
@@ -86,8 +91,12 @@ func (e *EnvInit) execute(ctx context.Context) error {
 
 	pk := strings.TrimSpace(string(pubKey))
 	sshAuthorizedKeys := executor.FindSSHAuthorizedKeysFile(ctx, exec)
-	cmd = fmt.Sprintf(`su - %[1]s -c 'grep $(echo %[2]s) %[3]s || echo %[2]s >> %[3]s && chmod 600 %[3]s'`,
-		e.deployUser, pk, sshAuthorizedKeys)
+	cmd = fmt.Sprintf(`grep $(echo %[1]s) %[2]s || echo %[1]s >> %[2]s && chmod 600 %[2]s`,
+		pk, sshAuthorizedKeys)
+	if e.su {
+		cmd = fmt.Sprintf(`su - %s -c '%s'`,
+			e.deployUser, cmd)
+	}
 	_, _, err = exec.Execute(ctx, cmd, true)
 	if err != nil {
 		return wrapError(errEnvInitSubCommandFailed.
