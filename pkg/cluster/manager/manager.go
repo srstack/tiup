@@ -171,7 +171,29 @@ func (m *Manager) fillHost(s, p *tui.SSHConnectionProps, topo spec.Topology, gOp
 	if err := m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullArchType); err != nil {
 		return err
 	}
-	return m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullOSType)
+	if err := m.fillHostArchOrOS(s, p, topo, gOpt, user, spec.FullOSType); err != nil {
+		return err
+	}
+
+	return checkMacOSWithoutMonitor(topo)
+}
+
+// checkMacOSWithoutMonitor monitor won't be installed on macs
+func checkMacOSWithoutMonitor(topo spec.Topology) error {
+	var err error
+	uniqueHosts := set.NewStringSet()
+	topo.IterInstance(func(inst spec.Instance) {
+		if inst.OS() == spec.MacOS && !inst.IgnoreMonitorAgent() {
+			if !uniqueHosts.Exist(inst.GetHost()) {
+				if err == nil {
+					err = fmt.Errorf("\n`ignore_exporter` must be set to true for Mac OS")
+				}
+				err = perrs.Annotate(err, fmt.Sprintf("\nMacOS node: `%s`", inst.GetHost()))
+				uniqueHosts.Insert(inst.GetHost())
+			}
+		}
+	})
+	return err
 }
 
 // fillHostArchOrOS full host cpu-arch or kernel-name

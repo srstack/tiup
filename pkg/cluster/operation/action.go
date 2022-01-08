@@ -284,7 +284,8 @@ func systemctlMonitor(ctx context.Context, hosts []string, noAgentHosts set.Stri
 				e := ctxt.GetInner(nctx).Get(host)
 				service := fmt.Sprintf("%s-%d.service", comp, ports[comp])
 
-				if err := systemctl(nctx, e, service, action, timeout); err != nil {
+				// monitor won't be installed on macs
+				if err := systemctl(nctx, e, service, action, spec.MacOS, timeout); err != nil {
 					return toFailedActionError(err, action, host, service, "")
 				}
 
@@ -316,7 +317,7 @@ func restartInstance(ctx context.Context, ins spec.Instance, timeout uint64, tls
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	logger.Infof("\tRestarting instance %s", ins.ID())
 
-	if err := systemctl(ctx, e, ins.ServiceName(), "restart", timeout); err != nil {
+	if err := systemctl(ctx, e, ins.ServiceName(), ins.OS(), "restart", timeout); err != nil {
 		return toFailedActionError(err, "restart", ins.GetHost(), ins.ServiceName(), ins.LogDir())
 	}
 
@@ -341,7 +342,7 @@ func enableInstance(ctx context.Context, ins spec.Instance, timeout uint64, isEn
 	logger.Infof("\t%s instance %s", actionPrevMsgs[action], ins.ID())
 
 	// Enable/Disable by systemd.
-	if err := systemctl(ctx, e, ins.ServiceName(), action, timeout); err != nil {
+	if err := systemctl(ctx, e, ins.ServiceName(), ins.OS(), action, timeout); err != nil {
 		return toFailedActionError(err, action, ins.GetHost(), ins.ServiceName(), ins.LogDir())
 	}
 
@@ -355,7 +356,7 @@ func startInstance(ctx context.Context, ins spec.Instance, timeout uint64, tlsCf
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	logger.Infof("\tStarting instance %s", ins.ID())
 
-	if err := systemctl(ctx, e, ins.ServiceName(), "start", timeout); err != nil {
+	if err := systemctl(ctx, e, ins.ServiceName(), ins.OS(), "start", timeout); err != nil {
 		return toFailedActionError(err, "start", ins.GetHost(), ins.ServiceName(), ins.LogDir())
 	}
 
@@ -369,13 +370,14 @@ func startInstance(ctx context.Context, ins spec.Instance, timeout uint64, tlsCf
 	return nil
 }
 
-func systemctl(ctx context.Context, executor ctxt.Executor, service string, action string, timeout uint64) error {
+func systemctl(ctx context.Context, executor ctxt.Executor, service, action, os string, timeout uint64) error {
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	c := module.SystemdModuleConfig{
 		Unit:         service,
 		ReloadDaemon: true,
 		Action:       action,
 		Timeout:      time.Second * time.Duration(timeout),
+		OS:           os,
 	}
 	systemd := module.NewSystemdModule(c)
 	stdout, stderr, err := systemd.Execute(ctx, executor)
@@ -513,7 +515,7 @@ func stopInstance(ctx context.Context, ins spec.Instance, timeout uint64) error 
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	logger.Infof("\tStopping instance %s", ins.GetHost())
 
-	if err := systemctl(ctx, e, ins.ServiceName(), "stop", timeout); err != nil {
+	if err := systemctl(ctx, e, ins.ServiceName(), ins.OS(), "stop", timeout); err != nil {
 		return toFailedActionError(err, "stop", ins.GetHost(), ins.ServiceName(), ins.LogDir())
 	}
 

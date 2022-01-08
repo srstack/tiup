@@ -27,6 +27,7 @@ const (
 	SystemdScopeSystem = "system"
 	SystemdScopeUser   = "user"
 	SystemdScopeGlobal = "global"
+	MacOS              = "darwin"
 )
 
 // SystemdModuleConfig is the configurations used to initialize a SystemdModule
@@ -38,6 +39,7 @@ type SystemdModuleConfig struct {
 	Force        bool          // add the `--force` arg to systemctl command
 	Signal       string        // specify the signal to send to process
 	Timeout      time.Duration // timeout to execute the command
+	OS           string        // kernel name
 }
 
 // SystemdModule is the module used to control systemd units
@@ -51,7 +53,9 @@ type SystemdModule struct {
 // given config.
 func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 	systemctl := "systemctl"
-	sudo := true
+
+	// Mac Os doesn't need sudo
+	sudo := config.OS != MacOS
 
 	if config.Force {
 		systemctl = fmt.Sprintf("%s --force", systemctl)
