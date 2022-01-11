@@ -289,7 +289,7 @@ func checkSystemInfo(
 						gOpt.SSHType,
 						topo.GlobalOptions.SSHType,
 					).
-					Mkdir(opt.User, inst.GetHost(), filepath.Join(task.CheckToolsPathDir, "bin")).
+					Mkdir(opt.User, inst.GetHost(), inst.OS(), filepath.Join(task.CheckToolsPathDir, "bin")).
 					CopyComponent(
 						spec.ComponentCheckCollector,
 						inst.OS(),

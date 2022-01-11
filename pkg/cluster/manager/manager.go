@@ -180,7 +180,6 @@ func (m *Manager) fillHost(s, p *tui.SSHConnectionProps, topo spec.Topology, gOp
 
 // checkMacOSWithoutMonitor monitor won't be installed on macs
 func checkMacOSWithoutMonitor(topo spec.Topology) error {
-
 	uniqueHosts := set.NewStringSet()
 	topo.IterInstance(func(inst spec.Instance) {
 		if inst.OS() == spec.MacOS && !inst.IgnoreMonitorAgent() {

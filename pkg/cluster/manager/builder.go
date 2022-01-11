@@ -533,7 +533,7 @@ func buildMonitoredCertificateTasks(
 
 				// Deploy component
 				tb := task.NewSimpleUerSSH(m.logger, host, info.ssh, globalOptions.User, gOpt, p, globalOptions.SSHType).
-					Mkdir(globalOptions.User, host, tlsDir)
+					Mkdir(globalOptions.User, host, info.os, tlsDir)
 
 				if comp == spec.ComponentBlackboxExporter {
 					ca, innerr := crypto.ReadCA(
@@ -852,7 +852,7 @@ func buildCertificateTasks(
 			tlsDir := filepath.Join(deployDir, spec.TLSCertKeyDir)
 
 			tb := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), base.User, gOpt, p, topo.BaseTopo().GlobalOptions.SSHType).
-				Mkdir(base.User, inst.GetHost(), deployDir, tlsDir)
+				Mkdir(base.User, inst.GetHost(), inst.OS(), deployDir, tlsDir)
 
 			ca, err := crypto.ReadCA(
 				name,
