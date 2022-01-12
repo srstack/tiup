@@ -234,7 +234,7 @@ func checkSystemInfo(
 					).
 					CheckSys(
 						inst.GetHost(),
-						fmt.Sprintf("/etc/systemd/system/%s-%d.service", inst.ComponentName(), inst.GetPort()),
+						inst.ServiceUnitPath(),
 						task.ChecktypeIsExist,
 						topo,
 						opt.Opr,
