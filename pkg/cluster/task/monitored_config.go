@@ -99,7 +99,7 @@ func (m *MonitoredConfig) syncMonitoredSystemConfig(ctx context.Context, exec ct
 
 	resource := spec.MergeResourceControl(m.globResCtl, m.options.ResourceControl)
 	// macos does not need install monitored
-	systemCfg := system.NewConfig(comp, m.deployUser, m.paths.Deploy, spec.Linux).
+	systemCfg := system.NewConfig(comp, port, m.deployUser, m.paths.Deploy, spec.Linux).
 		WithMemoryLimit(resource.MemoryLimit).
 		WithCPUQuota(resource.CPUQuota).
 		WithIOReadBandwidthMax(resource.IOReadBandwidthMax).

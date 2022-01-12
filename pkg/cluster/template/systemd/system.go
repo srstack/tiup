@@ -25,6 +25,7 @@ import (
 // Config represent the data to generate systemd config
 type Config struct {
 	ServiceName         string
+	Port                int
 	User                string
 	OS                  string
 	MemoryLimit         string
@@ -41,9 +42,10 @@ type Config struct {
 }
 
 // NewConfig returns a Config with given arguments
-func NewConfig(service, user, deployDir, os string) *Config {
+func NewConfig(service string, port int, user, deployDir, os string) *Config {
 	return &Config{
 		ServiceName: service,
+		Port:        port,
 		User:        user,
 		DeployDir:   deployDir,
 		OS:          os,
@@ -91,7 +93,17 @@ func (c *Config) ConfigToFile(file string) error {
 
 // Config generate the config file data.
 func (c *Config) Config() ([]byte, error) {
-	fp := path.Join("templates", "systemd", "system.service.tpl")
+
+	var fp string
+	switch c.OS {
+	case "darwin":
+		fp = path.Join("templates", "systemd", "plist.tpl")
+
+	default:
+		fp = path.Join("templates", "systemd", "system.service.tpl")
+
+	}
+
 	tpl, err := embed.ReadTemplate(fp)
 	if err != nil {
 		return nil, err

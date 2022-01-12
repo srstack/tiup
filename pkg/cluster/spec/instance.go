@@ -175,7 +175,7 @@ func (i *BaseInstance) InitConfig(ctx context.Context, e ctxt.Executor, opt Glob
 	}
 
 	resource := MergeResourceControl(opt.ResourceControl, i.resourceControl())
-	systemCfg := system.NewConfig(comp, user, paths.Deploy, i.OS()).
+	systemCfg := system.NewConfig(comp, port, user, paths.Deploy, i.OS()).
 		WithMemoryLimit(resource.MemoryLimit).
 		WithCPUQuota(resource.CPUQuota).
 		WithLimitCORE(resource.LimitCORE).
@@ -323,10 +323,17 @@ func (i *BaseInstance) ServiceName() string {
 	default:
 		name = i.Name
 	}
-	if i.Port > 0 {
+	if i.Port <= 0 {
+		return fmt.Sprintf("%s.service", name)
+	}
+
+	switch i.OS() {
+	case MacOS:
+		return fmt.Sprintf("com.pingcap.%s.%d.plist", name, i.Port)
+	default:
 		return fmt.Sprintf("%s-%d.service", name, i.Port)
 	}
-	return fmt.Sprintf("%s.service", name)
+
 }
 
 // ServicePath implements Instance interface
