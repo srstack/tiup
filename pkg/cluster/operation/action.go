@@ -317,8 +317,12 @@ func restartInstance(ctx context.Context, ins spec.Instance, timeout uint64, tls
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	logger.Infof("\tRestarting instance %s", ins.ID())
 
-	if err := systemctl(ctx, e, ins.ServiceName(), "restart", ins.OS(), timeout); err != nil {
-		return toFailedActionError(err, "restart", ins.GetHost(), ins.ServiceName(), ins.LogDir())
+	if err := systemctl(ctx, e, ins.ServiceName(), "stop", ins.OS(), timeout); err != nil {
+		return toFailedActionError(err, "stop", ins.GetHost(), ins.ServiceName(), ins.LogDir())
+	}
+
+	if err := systemctl(ctx, e, ins.ServiceName(), "start", ins.OS(), timeout); err != nil {
+		return toFailedActionError(err, "start", ins.GetHost(), ins.ServiceName(), ins.LogDir())
 	}
 
 	// Check ready.
