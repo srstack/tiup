@@ -54,7 +54,7 @@ func buildReloadPromTasks(
 			continue
 		}
 		t := task.NewBuilder(logger).
-			SystemCtl(inst.GetHost(), inst.ServiceName(), "reload", true).
+			SystemCtl(inst.GetHost(), inst.ServiceName(), "reload", inst.OS(), true).
 			BuildAsStep(fmt.Sprintf("  - Reload %s -> %s", inst.ComponentName(), inst.ID()))
 		tasks = append(tasks, t)
 	}

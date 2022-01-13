@@ -93,7 +93,6 @@ func (c *Config) ConfigToFile(file string) error {
 
 // Config generate the config file data.
 func (c *Config) Config() ([]byte, error) {
-
 	var fp string
 	switch c.OS {
 	case "darwin":
@@ -101,7 +100,6 @@ func (c *Config) Config() ([]byte, error) {
 
 	default:
 		fp = path.Join("templates", "systemd", "system.service.tpl")
-
 	}
 
 	tpl, err := embed.ReadTemplate(fp)

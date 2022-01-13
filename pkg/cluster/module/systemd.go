@@ -28,6 +28,7 @@ const (
 	SystemdScopeUser   = "user"
 	SystemdScopeGlobal = "global"
 	MacOS              = "darwin"
+	Linux              = "linux"
 )
 
 // SystemdModuleConfig is the configurations used to initialize a SystemdModule
@@ -53,15 +54,18 @@ type SystemdModule struct {
 // given config.
 func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 	systemctl := "systemctl"
+	if config.OS == MacOS {
+		systemctl = "launchctl"
+	}
 
 	// Mac Os doesn't need sudo
 	sudo := config.OS != MacOS
 
-	if config.Force {
+	if config.Force && config.OS == Linux {
 		systemctl = fmt.Sprintf("%s --force", systemctl)
 	}
 
-	if config.Signal != "" {
+	if config.Signal != "" && config.OS == Linux {
 		systemctl = fmt.Sprintf("%s --signal %s", systemctl, config.Signal)
 	}
 
@@ -76,7 +80,12 @@ func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 	cmd := fmt.Sprintf("%s %s %s",
 		systemctl, strings.ToLower(config.Action), config.Unit)
 
-	if config.ReloadDaemon {
+	// load plist in mac os
+	if config.OS == MacOS && config.Action == "load" {
+		cmd = fmt.Sprintf("%s.plist", cmd)
+	}
+
+	if config.ReloadDaemon && config.OS == Linux {
 		cmd = fmt.Sprintf("%s daemon-reload && %s",
 			systemctl, cmd)
 	}
