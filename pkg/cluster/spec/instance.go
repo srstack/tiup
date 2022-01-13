@@ -329,7 +329,7 @@ func (i *BaseInstance) ServiceName() string {
 
 	switch i.OS() {
 	case MacOS:
-		return fmt.Sprintf("com.pingcap.%s.%d", name, i.Port)
+		return fmt.Sprintf("com.pingcap.%s.%d.plist", name, i.Port)
 	default:
 		return fmt.Sprintf("%s-%d.service", name, i.Port)
 	}
