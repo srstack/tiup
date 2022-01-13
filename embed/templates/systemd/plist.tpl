@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
         <key>Label</key>
-        <string>com.pingcap.{{.ServiceName}}_{{.Port}}</string>
+        <string>com.pingcap.{{.ServiceName}}.{{.Port}}</string>
         <key>Program</key>
         <string>{{.DeployDir}}/scripts/run_{{.ServiceName}}.sh</string>
         <key>StandardErrorPath</key>

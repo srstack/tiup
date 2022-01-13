@@ -416,8 +416,16 @@ func DestroyComponent(ctx context.Context, instances []spec.Instance, cls spec.T
 		delPaths.Insert(ins.ServiceUnitPath())
 
 		logger.Debugf("Deleting paths on %s: %s", ins.GetHost(), strings.Join(delPaths.Slice(), " "))
+		cmd := fmt.Sprintf("rm -rf %s;", strings.Join(delPaths.Slice(), " "))
+
+		// unload plist
+		if ins.OS() == spec.MacOS {
+			logger.Debugf("Unload %s", ins.ServiceName())
+			cmd = fmt.Sprintf("launchctl unload %s && %s", ins.ServiceUnitPath(), cmd)
+		}
+
 		c := module.ShellModuleConfig{
-			Command:  fmt.Sprintf("rm -rf %s;", strings.Join(delPaths.Slice(), " ")),
+			Command:  cmd,
 			Sudo:     true, // the .service files are in a directory owned by root
 			Chdir:    "",
 			UseShell: false,

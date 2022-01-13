@@ -89,7 +89,10 @@ func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 
 	// mac os need load pist
 	if config.OS == MacOS && config.Action == "enable" {
-		cmd = fmt.Sprintf("launchctl load %s && %s", filepath.Join(PlistDir, config.Unit), cmd)
+		cmd = fmt.Sprintf("launchctl load %s ", filepath.Join(PlistDir, config.Unit))
+	}
+	if config.OS == MacOS && config.Action == "disable" {
+		cmd = fmt.Sprintf("launchctl unload %s ", filepath.Join(PlistDir, config.Unit))
 	}
 
 	mod := &SystemdModule{
