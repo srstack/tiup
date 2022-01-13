@@ -335,21 +335,10 @@ func enableInstance(ctx context.Context, ins spec.Instance, timeout uint64, isEn
 	e := ctxt.GetInner(ctx).Get(ins.GetHost())
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 
-	var action string
-
-	switch ins.OS() {
-	case spec.MacOS:
-		action = "unload"
-		if isEnable {
-			action = "load"
-		}
-	default:
-		action = "disable"
-		if isEnable {
-			action = "enable"
-		}
+	action := "disable"
+	if isEnable {
+		action = "enable"
 	}
-
 	logger.Infof("\t%s instance %s", actionPrevMsgs[action], ins.ID())
 
 	// Enable/Disable by systemd.

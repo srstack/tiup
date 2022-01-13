@@ -16,6 +16,7 @@ package module
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ const (
 	SystemdScopeGlobal = "global"
 	MacOS              = "darwin"
 	Linux              = "linux"
+	PlistDir           = "~/Library/LaunchAgents"
 )
 
 // SystemdModuleConfig is the configurations used to initialize a SystemdModule
@@ -80,14 +82,14 @@ func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 	cmd := fmt.Sprintf("%s %s %s",
 		systemctl, strings.ToLower(config.Action), config.Unit)
 
-	// load plist in mac os
-	if config.OS == MacOS && config.Action == "load" {
-		cmd = fmt.Sprintf("%s.plist", cmd)
-	}
-
 	if config.ReloadDaemon && config.OS == Linux {
 		cmd = fmt.Sprintf("%s daemon-reload && %s",
 			systemctl, cmd)
+	}
+
+	// mac os need load pist
+	if config.OS == MacOS && config.Action == "enable" {
+		cmd = fmt.Sprintf("launchctl load %s.plist && %s", filepath.Join(PlistDir, config.Unit), cmd)
 	}
 
 	mod := &SystemdModule{
