@@ -420,8 +420,11 @@ func DestroyComponent(ctx context.Context, instances []spec.Instance, cls spec.T
 
 		// unload plist
 		if ins.OS() == spec.MacOS {
-			logger.Debugf("Unload %s", ins.ServiceName())
-			cmd = fmt.Sprintf("launchctl unload %s && %s", ins.ServiceUnitPath(), cmd)
+			// logger.Debugf("Unload %s", ins.ServiceName())
+			// cmd = fmt.Sprintf("launchctl unload %s && %s", ins.ServiceUnitPath(), cmd)
+			if err := systemctl(ctx, e, ins.ServiceName(), "unload", ins.OS(), options.SSHTimeout); err != nil {
+				return toFailedActionError(err, "unload", ins.GetHost(), ins.ServiceName(), ins.LogDir())
+			}
 		}
 
 		c := module.ShellModuleConfig{
