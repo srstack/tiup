@@ -89,6 +89,7 @@ type Instance interface {
 	InstanceSpec
 	ID() string
 	Ready(context.Context, ctxt.Executor, uint64, *tls.Config) error
+	Done(context.Context, ctxt.Executor, uint64, *tls.Config) error
 	InitConfig(ctx context.Context, e ctxt.Executor, clusterName string, clusterVersion string, deployUser string, paths meta.DirPaths) error
 	ScaleConfig(ctx context.Context, e ctxt.Executor, topo Topology, clusterName string, clusterVersion string, deployUser string, paths meta.DirPaths) error
 	PrepareStart(ctx context.Context, tlsCfg *tls.Config) error
@@ -115,22 +116,24 @@ type Instance interface {
 }
 
 // PortStarted wait until a port is being listened
-func PortStarted(ctx context.Context, e ctxt.Executor, port int, timeout uint64) error {
+func PortStarted(ctx context.Context, e ctxt.Executor, port int, os string, timeout uint64) error {
 	c := module.WaitForConfig{
 		Port:    port,
 		State:   "started",
 		Timeout: time.Second * time.Duration(timeout),
+		OS:      os,
 	}
 	w := module.NewWaitFor(c)
 	return w.Execute(ctx, e)
 }
 
 // PortStopped wait until a port is being released
-func PortStopped(ctx context.Context, e ctxt.Executor, port int, timeout uint64) error {
+func PortStopped(ctx context.Context, e ctxt.Executor, port int, os string, timeout uint64) error {
 	c := module.WaitForConfig{
 		Port:    port,
 		State:   "stopped",
 		Timeout: time.Second * time.Duration(timeout),
+		OS:      os,
 	}
 	w := module.NewWaitFor(c)
 	return w.Execute(ctx, e)
@@ -154,7 +157,12 @@ type BaseInstance struct {
 
 // Ready implements Instance interface
 func (i *BaseInstance) Ready(ctx context.Context, e ctxt.Executor, timeout uint64, _ *tls.Config) error {
-	return PortStarted(ctx, e, i.Port, timeout)
+	return PortStarted(ctx, e, i.Port, i.OS(), timeout)
+}
+
+// Done implements Instance interface
+func (i *BaseInstance) Done(ctx context.Context, e ctxt.Executor, timeout uint64, _ *tls.Config) error {
+	return PortStopped(ctx, e, i.Port, i.OS(), timeout)
 }
 
 // InitConfig init the service configuration.
@@ -329,7 +337,7 @@ func (i *BaseInstance) ServiceName() string {
 
 	switch i.OS() {
 	case MacOS:
-		return fmt.Sprintf("com.pingcap.%s.%d.plist", name, i.Port)
+		return fmt.Sprintf("com.pingcap.%s.%d", name, i.Port)
 	default:
 		return fmt.Sprintf("%s-%d.service", name, i.Port)
 	}

@@ -52,7 +52,7 @@ func Destroy(
 		instCount[inst.GetHost()]++
 
 		// MacOS does not need sudo permissions
-		if sudo && inst.OS() != spec.MacOS {
+		if sudo && inst.OS() == spec.MacOS {
 			sudo = false
 		}
 	})
@@ -209,9 +209,23 @@ func DeletePublicKey(ctx context.Context, host string, sudo bool) error {
 	pubKeysFile := executor.FindSSHAuthorizedKeysFile(ctx, e, sudo)
 
 	// delete the public key with Linux `sed` toolkit
+
+	// in mac os
+	// -i extension
+	// Edit files in-place similarly to -I, but treat each file independently from other files.
+	// In particular, line numbers in each file start at 1, the “$” address matches the last line of the current file, and
+	// address ranges are limited to the current file.  (See Sed Addresses.)
+	// The net result is as though each file were edited by a separate sed instance.
+	// sudo is false means that run in mac os
+	backInfo := ""
+	if !sudo {
+		backInfo = `""`
+	}
+
 	c := module.ShellModuleConfig{
-		Command:  fmt.Sprintf("sed -i '/%s/d' %s", pubKey, pubKeysFile),
+		Command:  fmt.Sprintf(`sed -i %s "/%s/d" %s`, backInfo, pubKey, pubKeysFile),
 		UseShell: false,
+		Sudo:     sudo,
 	}
 	shell := module.NewShellModule(c)
 	stdout, stderr, err := shell.Execute(ctx, e)
@@ -233,6 +247,11 @@ func DeletePublicKey(ctx context.Context, host string, sudo bool) error {
 
 // DestroyMonitored destroy the monitored service.
 func DestroyMonitored(ctx context.Context, inst spec.Instance, options *spec.MonitoredOptions, timeout uint64) error {
+	// mac os cannot install monitored
+	if inst.OS() == spec.MacOS {
+		return nil
+	}
+
 	e := ctxt.GetInner(ctx).Get(inst.GetHost())
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 
@@ -259,7 +278,7 @@ func DestroyMonitored(ctx context.Context, inst spec.Instance, options *spec.Mon
 
 	c := module.ShellModuleConfig{
 		Command:  fmt.Sprintf("rm -rf %s;", strings.Join(delPaths, " ")),
-		Sudo:     true, // the .service files are in a directory owned by root
+		Sudo:     inst.OS() != spec.MacOS, // the .service files are in a directory owned by root
 		Chdir:    "",
 		UseShell: false,
 	}
@@ -277,12 +296,12 @@ func DestroyMonitored(ctx context.Context, inst spec.Instance, options *spec.Mon
 		return errors.Annotatef(err, "failed to destroy monitored: %s", inst.GetHost())
 	}
 
-	if err := spec.PortStopped(ctx, e, options.NodeExporterPort, timeout); err != nil {
+	if err := spec.PortStopped(ctx, e, options.NodeExporterPort, spec.Linux, timeout); err != nil {
 		str := fmt.Sprintf("%s failed to destroy node exportoer: %s", inst.GetHost(), err)
 		logger.Errorf(str)
 		return errors.Annotatef(err, str)
 	}
-	if err := spec.PortStopped(ctx, e, options.BlackboxExporterPort, timeout); err != nil {
+	if err := spec.PortStopped(ctx, e, options.BlackboxExporterPort, spec.Linux, timeout); err != nil {
 		str := fmt.Sprintf("%s failed to destroy blackbox exportoer: %s", inst.GetHost(), err)
 		logger.Errorf(str)
 		return errors.Annotatef(err, str)
@@ -429,7 +448,7 @@ func DestroyComponent(ctx context.Context, instances []spec.Instance, cls spec.T
 
 		c := module.ShellModuleConfig{
 			Command:  cmd,
-			Sudo:     true, // the .service files are in a directory owned by root
+			Sudo:     ins.OS() != spec.MacOS, // the .service files are in a directory owned by root
 			Chdir:    "",
 			UseShell: false,
 		}

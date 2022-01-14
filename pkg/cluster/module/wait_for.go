@@ -35,6 +35,7 @@ type WaitForConfig struct {
 	// When checking a port started will ensure the port is open, stopped will check that it is closed
 	State   string
 	Timeout time.Duration // Maximum duration to wait for.
+	OS      string
 }
 
 // WaitFor is the module used to wait for some condition.
@@ -71,20 +72,34 @@ func (w *WaitFor) Execute(ctx context.Context, e ctxt.Executor) (err error) {
 	}
 	if err := utils.Retry(func() error {
 		// only listing TCP ports
-		stdout, _, err := e.Execute(ctx, "ss -ltn", false)
-		if err == nil {
+		cmd := "ss -ltn"
+
+		if w.c.OS == MacOS {
+			cmd = fmt.Sprintf("lsof -i:%d", w.c.Port)
+			pattern = []byte("LISTEN")
+		}
+		stdout, _, err := e.Execute(ctx, cmd, false)
+
+		if err != nil {
+			// err is not nil means that the process has stopped
+			if w.c.State == "stopped" && w.c.OS == MacOS {
+				return nil
+			}
+		} else {
 			switch w.c.State {
 			case "started":
 				if bytes.Contains(stdout, pattern) {
 					return nil
 				}
+				fallthrough
 			case "stopped":
-				if !bytes.Contains(stdout, pattern) {
+				if !bytes.Contains(stdout, pattern) && w.c.OS != MacOS {
 					return nil
 				}
+				return errors.New("still waiting for port state to be satisfied")
 			}
-			return errors.New("still waiting for port state to be satisfied")
 		}
+
 		return err
 	}, retryOpt); err != nil {
 		zap.L().Debug("retry error", zap.Error(err))

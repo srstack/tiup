@@ -291,10 +291,11 @@ func systemctlMonitor(ctx context.Context, hosts []string, noAgentHosts set.Stri
 
 				var err error
 				switch action {
+				// monitor only installed on linux
 				case "start":
-					err = spec.PortStarted(nctx, e, ports[comp], timeout)
+					err = spec.PortStarted(nctx, e, ports[comp], spec.Linux, timeout)
 				case "stop":
-					err = spec.PortStopped(nctx, e, ports[comp], timeout)
+					err = spec.PortStopped(nctx, e, ports[comp], spec.Linux, timeout)
 				}
 
 				if err != nil {
@@ -318,6 +319,11 @@ func restartInstance(ctx context.Context, ins spec.Instance, timeout uint64, tls
 	logger.Infof("\tRestarting instance %s", ins.ID())
 
 	if err := systemctl(ctx, e, ins.ServiceName(), "stop", ins.OS(), timeout); err != nil {
+		return toFailedActionError(err, "stop", ins.GetHost(), ins.ServiceName(), ins.LogDir())
+	}
+
+	// Check stop.
+	if err := ins.Done(ctx, e, timeout, nil); err != nil {
 		return toFailedActionError(err, "stop", ins.GetHost(), ins.ServiceName(), ins.LogDir())
 	}
 
@@ -520,6 +526,11 @@ func stopInstance(ctx context.Context, ins spec.Instance, timeout uint64) error 
 	logger.Infof("\tStopping instance %s", ins.GetHost())
 
 	if err := systemctl(ctx, e, ins.ServiceName(), "stop", ins.OS(), timeout); err != nil {
+		return toFailedActionError(err, "stop", ins.GetHost(), ins.ServiceName(), ins.LogDir())
+	}
+
+	// Check stop.
+	if err := ins.Done(ctx, e, timeout, nil); err != nil {
 		return toFailedActionError(err, "stop", ins.GetHost(), ins.ServiceName(), ins.LogDir())
 	}
 
