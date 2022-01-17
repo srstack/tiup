@@ -64,28 +64,34 @@ func NewWaitFor(c WaitForConfig) *WaitFor {
 
 // Execute the module return nil if successfully wait for the event.
 func (w *WaitFor) Execute(ctx context.Context, e ctxt.Executor) (err error) {
-	pattern := []byte(fmt.Sprintf(":%d ", w.c.Port))
-
 	retryOpt := utils.RetryOption{
 		Delay:   w.c.Sleep,
 		Timeout: w.c.Timeout,
 	}
-	if err := utils.Retry(func() error {
-		// only listing TCP ports
-		cmd := "ss -ltn"
 
-		if w.c.OS == MacOS {
-			cmd = fmt.Sprintf("lsof -i:%d", w.c.Port)
-			pattern = []byte("LISTEN")
-		}
+	switch w.c.OS {
+	case MacOS:
+		err = w.waitForMacOS(ctx, e, retryOpt)
+	case Linux:
+		err = w.waitForLinux(ctx, e, retryOpt)
+	}
+
+	if err != nil {
+		zap.L().Debug("retry error", zap.Error(err))
+		return errors.Errorf("timed out waiting for port %d to be %s after %s", w.c.Port, w.c.State, w.c.Timeout)
+	}
+	return nil
+}
+
+// waitForLinux
+func (w *WaitFor) waitForLinux(ctx context.Context, e ctxt.Executor, retryOpt utils.RetryOption) error {
+	pattern := []byte(fmt.Sprintf(":%d ", w.c.Port))
+	// only listing TCP ports
+	cmd := "ss -ltn"
+	return utils.Retry(func() error {
 		stdout, _, err := e.Execute(ctx, cmd, false)
 
-		if err != nil {
-			// err is not nil means that the process has stopped
-			if w.c.State == "stopped" && w.c.OS == MacOS {
-				return nil
-			}
-		} else {
+		if err == nil {
 			switch w.c.State {
 			case "started":
 				if bytes.Contains(stdout, pattern) {
@@ -93,7 +99,7 @@ func (w *WaitFor) Execute(ctx context.Context, e ctxt.Executor) (err error) {
 				}
 				fallthrough
 			case "stopped":
-				if !bytes.Contains(stdout, pattern) && w.c.OS != MacOS {
+				if !bytes.Contains(stdout, pattern) {
 					return nil
 				}
 				return errors.New("still waiting for port state to be satisfied")
@@ -101,9 +107,32 @@ func (w *WaitFor) Execute(ctx context.Context, e ctxt.Executor) (err error) {
 		}
 
 		return err
-	}, retryOpt); err != nil {
-		zap.L().Debug("retry error", zap.Error(err))
-		return errors.Errorf("timed out waiting for port %d to be %s after %s", w.c.Port, w.c.State, w.c.Timeout)
-	}
-	return nil
+	}, retryOpt)
+}
+
+// waitForMacOS
+func (w *WaitFor) waitForMacOS(ctx context.Context, e ctxt.Executor, retryOpt utils.RetryOption) error {
+	pattern := []byte("-")
+	// get process status
+	cmd := fmt.Sprintf("launchctl list | grep pingcap | grep %d", w.c.Port)
+	return utils.Retry(func() error {
+		stdout, _, err := e.Execute(ctx, cmd, false)
+
+		if err == nil {
+			switch w.c.State {
+			case "started":
+				if !bytes.Contains(stdout, pattern) {
+					return nil
+				}
+				fallthrough
+			case "stopped":
+				if bytes.Contains(stdout, pattern) {
+					return nil
+				}
+				return errors.New("still waiting for port state to be satisfied")
+			}
+		}
+
+		return err
+	}, retryOpt)
 }
