@@ -204,6 +204,9 @@ func (i *BaseInstance) InitConfig(ctx context.Context, e ctxt.Executor, opt Glob
 		return errors.Annotatef(err, "transfer from %s to %s failed", sysCfg, tgt)
 	}
 	cmd := fmt.Sprintf("mv %s %s", tgt, i.ServiceUnitPath())
+	if i.OS() == MacOS {
+		cmd = fmt.Sprintf("%s.plist", cmd)
+	}
 	// mac os does not  need sudo permissions
 	if _, _, err := e.Execute(ctx, cmd, i.OS() != MacOS); err != nil {
 		return errors.Annotatef(err, "execute: %s", cmd)

@@ -112,16 +112,22 @@ func (w *WaitFor) waitForLinux(ctx context.Context, e ctxt.Executor, retryOpt ut
 
 // waitForMacOS
 func (w *WaitFor) waitForMacOS(ctx context.Context, e ctxt.Executor, retryOpt utils.RetryOption) error {
-	pattern := []byte("-")
-	// get process status
-	cmd := fmt.Sprintf("launchctl list | grep pingcap | grep %d", w.c.Port)
+	// start: listing TCP ports
+	cmd := fmt.Sprintf("lsof -i:%d", w.c.Port)
+	pattern := []byte("LISTEN")
+
+	if w.c.State == "stopped" {
+		// stop: get process status
+		cmd = fmt.Sprintf("launchctl list | grep pingcap | grep %d", w.c.Port)
+		pattern = []byte("-")
+	}
 	return utils.Retry(func() error {
 		stdout, _, err := e.Execute(ctx, cmd, false)
 
 		if err == nil {
 			switch w.c.State {
 			case "started":
-				if !bytes.Contains(stdout, pattern) {
+				if bytes.Contains(stdout, pattern) {
 					return nil
 				}
 				fallthrough
