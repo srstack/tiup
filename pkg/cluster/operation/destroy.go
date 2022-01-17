@@ -321,7 +321,6 @@ func CleanupComponent(ctx context.Context, delFileMaps map[string]set.StringSet)
 		logger.Debugf("Deleting paths on %s: %s", host, strings.Join(delFiles.Slice(), " "))
 		c := module.ShellModuleConfig{
 			Command:  fmt.Sprintf("rm -rf %s;", strings.Join(delFiles.Slice(), " ")),
-			Sudo:     true, // the .service files are in a directory owned by root
 			Chdir:    "",
 			UseShell: true,
 		}
