@@ -12,5 +12,3 @@
         <string>{{.DeployDir}}/log/plist.log</string>
 </dict>
 </plist>
-
-    
