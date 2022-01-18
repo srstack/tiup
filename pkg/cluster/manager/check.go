@@ -177,7 +177,7 @@ func checkSystemInfo(
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	insightVer := spec.TiDBComponentVersion(spec.ComponentCheckCollector, "")
 
-	uniqueHosts := map[string]int{}             // host -> ssh-port
+	uniqueHosts := map[string]hostInfo{}        // host -> ssh-port
 	uniqueArchList := make(map[string]struct{}) // map["os-arch"]{}
 
 	roleFilter := set.NewStringSet(gOpt.Roles...)
@@ -276,7 +276,11 @@ func checkSystemInfo(
 
 			// checks that applies to each host
 			if _, found := uniqueHosts[inst.GetHost()]; !found {
-				uniqueHosts[inst.GetHost()] = inst.GetSSHPort()
+				uniqueHosts[inst.GetHost()] = hostInfo{
+					ssh:  inst.GetSSHPort(),
+					arch: inst.Arch(),
+					os:   inst.OS(),
+				}
 				// build system info collecting tasks
 				t2 := task.NewBuilder(logger).
 					RootSSH(
@@ -449,11 +453,11 @@ func checkSystemInfo(
 		{"Node", "Check", "Result", "Message"},
 	}
 	checkResults := make([]HostCheckResult, 0)
-	for host := range uniqueHosts {
+	for host, hostInfo := range uniqueHosts {
 		tf := task.NewBuilder(logger).
 			RootSSH(
 				host,
-				uniqueHosts[host],
+				hostInfo.ssh,
 				opt.User,
 				s.Password,
 				s.IdentityFile,
@@ -470,7 +474,7 @@ func checkSystemInfo(
 				gOpt.SSHType,
 				topo.GlobalOptions.SSHType,
 			)
-		res, err := handleCheckResults(ctx, host, spec.Linux, opt, tf)
+		res, err := handleCheckResults(ctx, host, hostInfo.os, opt, tf)
 		if err != nil {
 			continue
 		}

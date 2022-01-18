@@ -128,7 +128,14 @@ func StopAndDestroyInstance(ctx context.Context, cluster spec.Topology, instance
 		monitoredOptions := cluster.GetMonitoredOptions()
 
 		if monitoredOptions != nil && !instance.IgnoreMonitorAgent() {
-			if err := StopMonitored(ctx, []string{instance.GetHost()}, noAgentHosts, monitoredOptions, options.OptTimeout); err != nil {
+			hosts := map[string]hostInfo{
+				instance.GetHost(): {
+					ssh:  instance.GetSSHPort(),
+					arch: instance.Arch(),
+					os:   instance.OS(),
+				},
+			}
+			if err := StopMonitored(ctx, hosts, noAgentHosts, monitoredOptions, options.OptTimeout); err != nil {
 				if !ignoreErr {
 					return errors.Annotatef(err, "failed to stop monitor")
 				}

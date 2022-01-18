@@ -206,10 +206,8 @@ func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topol
 			if inst.OS() != "" {
 				return
 			}
-		} else {
-			if inst.Arch() != "" {
-				return
-			}
+		} else if inst.Arch() != "" {
+			return
 		}
 
 		if _, ok := hostArchOrOS[inst.GetHost()]; ok {
@@ -272,7 +270,6 @@ func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topol
 			return fmt.Errorf("no check results found for %s", host)
 		}
 		hostArchOrOS[host] = strings.Trim(string(stdout), "\n")
-		// fmt.Println(strings.Trim(string(stdout), "\n"))
 	}
 	return topo.FillHostArchOrOS(hostArchOrOS, fullType)
 }

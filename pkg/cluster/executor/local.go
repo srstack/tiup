@@ -41,9 +41,17 @@ var _ ctxt.Executor = &Local{}
 
 // Execute implements Executor interface.
 func (l *Local) Execute(ctx context.Context, cmd string, sudo bool, timeout ...time.Duration) ([]byte, []byte, error) {
+	// get current user name
+	user, err := user.Current()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// try to acquire root permission
 	if l.Sudo || sudo {
 		cmd = fmt.Sprintf("/usr/bin/sudo -H -u root bash -c 'cd; %s'", cmd)
+	} else if l.Config.User != user.Name {
+		cmd = fmt.Sprintf("/usr/bin/sudo -H -u %s bash -c 'cd; %s'", l.Config.User, cmd)
 	}
 
 	// set a basic PATH in case it's empty on login
@@ -71,7 +79,7 @@ func (l *Local) Execute(ctx context.Context, cmd string, sudo bool, timeout ...t
 	command.Stdout = stdout
 	command.Stderr = stderr
 
-	err := command.Run()
+	err = command.Run()
 
 	zap.L().Info("LocalCommand",
 		zap.String("cmd", cmd),

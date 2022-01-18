@@ -97,13 +97,12 @@ func (w *WaitFor) waitForLinux(ctx context.Context, e ctxt.Executor, retryOpt ut
 				if bytes.Contains(stdout, pattern) {
 					return nil
 				}
-				fallthrough
 			case "stopped":
 				if !bytes.Contains(stdout, pattern) {
 					return nil
 				}
-				return errors.New("still waiting for port state to be satisfied")
 			}
+			return errors.New("still waiting for port state to be satisfied")
 		}
 
 		return err
@@ -130,13 +129,12 @@ func (w *WaitFor) waitForMacOS(ctx context.Context, e ctxt.Executor, retryOpt ut
 				if bytes.Contains(stdout, pattern) {
 					return nil
 				}
-				fallthrough
 			case "stopped":
 				if bytes.Contains(stdout, pattern) {
 					return nil
 				}
-				return errors.New("still waiting for port state to be satisfied")
 			}
+			return errors.New("still waiting for port state to be satisfied")
 		}
 
 		return err

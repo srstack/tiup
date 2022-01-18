@@ -41,6 +41,13 @@ var (
 	actionPostMsgs = map[string]string{}
 )
 
+type hostInfo struct {
+	ssh  int    // ssh port of host
+	os   string // operating system
+	arch string // cpu architecture
+	// vendor string
+}
+
 func init() {
 	for action := range actionPrevMsgs {
 		actionPostMsgs[action] = strings.Title(action)
@@ -61,12 +68,17 @@ func Enable(
 	monitoredOptions := cluster.GetMonitoredOptions()
 	noAgentHosts := set.NewStringSet()
 
-	instCount := map[string]int{}
+	hosts := map[string]hostInfo{}
+
 	cluster.IterInstance(func(inst spec.Instance) {
 		if inst.IgnoreMonitorAgent() {
 			noAgentHosts.Insert(inst.GetHost())
 		} else {
-			instCount[inst.GetHost()]++
+			hosts[inst.GetHost()] = hostInfo{
+				ssh:  inst.GetSSHPort(),
+				os:   inst.OS(),
+				arch: inst.Arch(),
+			}
 		}
 	})
 
@@ -76,25 +88,10 @@ func Enable(
 		if err != nil {
 			return errors.Annotatef(err, "failed to enable/disable %s", comp.Name())
 		}
-
-		for _, inst := range insts {
-			if !inst.IgnoreMonitorAgent() {
-				instCount[inst.GetHost()]--
-			}
-		}
 	}
 
 	if monitoredOptions == nil {
 		return nil
-	}
-
-	hosts := make([]string, 0)
-	for host, count := range instCount {
-		// don't disable the monitor component if the instance's host contain other components
-		if count != 0 {
-			continue
-		}
-		hosts = append(hosts, host)
 	}
 
 	return EnableMonitored(ctx, hosts, noAgentHosts, monitoredOptions, options.OptTimeout, isEnable)
@@ -107,13 +104,13 @@ func Start(
 	options Options,
 	tlsCfg *tls.Config,
 ) error {
-	uniqueHosts := set.NewStringSet()
 	roleFilter := set.NewStringSet(options.Roles...)
 	nodeFilter := set.NewStringSet(options.Nodes...)
 	components := cluster.ComponentsByStartOrder()
 	components = FilterComponent(components, roleFilter)
 	monitoredOptions := cluster.GetMonitoredOptions()
 	noAgentHosts := set.NewStringSet()
+	hosts := map[string]hostInfo{}
 
 	cluster.IterInstance(func(inst spec.Instance) {
 		if inst.IgnoreMonitorAgent() {
@@ -129,7 +126,11 @@ func Start(
 		}
 		for _, inst := range insts {
 			if !inst.IgnoreMonitorAgent() {
-				uniqueHosts.Insert(inst.GetHost())
+				hosts[inst.GetHost()] = hostInfo{
+					ssh:  inst.GetSSHPort(),
+					arch: inst.Arch(),
+					os:   inst.OS(),
+				}
 			}
 		}
 	}
@@ -138,10 +139,6 @@ func Start(
 		return nil
 	}
 
-	hosts := make([]string, 0, len(uniqueHosts))
-	for host := range uniqueHosts {
-		hosts = append(hosts, host)
-	}
 	return StartMonitored(ctx, hosts, noAgentHosts, monitoredOptions, options.OptTimeout)
 }
 
@@ -158,13 +155,11 @@ func Stop(
 	components = FilterComponent(components, roleFilter)
 	monitoredOptions := cluster.GetMonitoredOptions()
 	noAgentHosts := set.NewStringSet()
+	hosts := map[string]hostInfo{}
 
-	instCount := map[string]int{}
 	cluster.IterInstance(func(inst spec.Instance) {
 		if inst.IgnoreMonitorAgent() {
 			noAgentHosts.Insert(inst.GetHost())
-		} else {
-			instCount[inst.GetHost()]++
 		}
 	})
 
@@ -176,21 +171,17 @@ func Stop(
 		}
 		for _, inst := range insts {
 			if !inst.IgnoreMonitorAgent() {
-				instCount[inst.GetHost()]--
+				hosts[inst.GetHost()] = hostInfo{
+					ssh:  inst.GetSSHPort(),
+					arch: inst.Arch(),
+					os:   inst.OS(),
+				}
 			}
 		}
 	}
 
 	if monitoredOptions == nil {
 		return nil
-	}
-
-	hosts := make([]string, 0)
-	for host, count := range instCount {
-		if count != 0 {
-			continue
-		}
-		hosts = append(hosts, host)
 	}
 
 	if err := StopMonitored(ctx, hosts, noAgentHosts, monitoredOptions, options.OptTimeout); err != nil && !options.Force {
@@ -246,17 +237,17 @@ func Restart(
 }
 
 // StartMonitored start BlackboxExporter and NodeExporter
-func StartMonitored(ctx context.Context, hosts []string, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64) error {
+func StartMonitored(ctx context.Context, hosts map[string]hostInfo, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64) error {
 	return systemctlMonitor(ctx, hosts, noAgentHosts, options, "start", timeout)
 }
 
 // StopMonitored stop BlackboxExporter and NodeExporter
-func StopMonitored(ctx context.Context, hosts []string, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64) error {
+func StopMonitored(ctx context.Context, hosts map[string]hostInfo, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64) error {
 	return systemctlMonitor(ctx, hosts, noAgentHosts, options, "stop", timeout)
 }
 
 // EnableMonitored enable/disable monitor service in a cluster
-func EnableMonitored(ctx context.Context, hosts []string, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64, isEnable bool) error {
+func EnableMonitored(ctx context.Context, hosts map[string]hostInfo, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64, isEnable bool) error {
 	action := "disable"
 	if isEnable {
 		action = "enable"
@@ -265,15 +256,16 @@ func EnableMonitored(ctx context.Context, hosts []string, noAgentHosts set.Strin
 	return systemctlMonitor(ctx, hosts, noAgentHosts, options, action, timeout)
 }
 
-func systemctlMonitor(ctx context.Context, hosts []string, noAgentHosts set.StringSet, options *spec.MonitoredOptions, action string, timeout uint64) error {
+func systemctlMonitor(ctx context.Context, hosts map[string]hostInfo, noAgentHosts set.StringSet, options *spec.MonitoredOptions, action string, timeout uint64) error {
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	ports := monitorPortMap(options)
 	for _, comp := range []string{spec.ComponentNodeExporter, spec.ComponentBlackboxExporter} {
 		logger.Infof("%s component %s", actionPrevMsgs[action], comp)
 
 		errg, _ := errgroup.WithContext(ctx)
-		for _, host := range hosts {
+		for host, hostInfo := range hosts {
 			host := host
+			hostInfo := hostInfo
 			if noAgentHosts.Exist(host) {
 				logger.Debugf("Ignored %s component %s for %s", action, comp, host)
 				continue
@@ -285,7 +277,7 @@ func systemctlMonitor(ctx context.Context, hosts []string, noAgentHosts set.Stri
 				service := fmt.Sprintf("%s-%d.service", comp, ports[comp])
 
 				// monitor won't be installed on macs
-				if err := systemctl(nctx, e, service, action, spec.Linux, timeout); err != nil {
+				if err := systemctl(nctx, e, service, action, hostInfo.os, timeout); err != nil {
 					return toFailedActionError(err, action, host, service, "")
 				}
 
@@ -293,9 +285,9 @@ func systemctlMonitor(ctx context.Context, hosts []string, noAgentHosts set.Stri
 				switch action {
 				// monitor only installed on linux
 				case "start":
-					err = spec.PortStarted(nctx, e, ports[comp], spec.Linux, timeout)
+					err = spec.PortStarted(nctx, e, ports[comp], hostInfo.os, timeout)
 				case "stop":
-					err = spec.PortStopped(nctx, e, ports[comp], spec.Linux, timeout)
+					err = spec.PortStopped(nctx, e, ports[comp], hostInfo.os, timeout)
 				}
 
 				if err != nil {

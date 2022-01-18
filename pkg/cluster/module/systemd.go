@@ -42,32 +42,61 @@ type SystemdModuleConfig struct {
 	Force        bool          // add the `--force` arg to systemctl command
 	Signal       string        // specify the signal to send to process
 	Timeout      time.Duration // timeout to execute the command
+	TimeWait     time.Duration // waiting time after the command is executed
 	OS           string        // kernel name
 }
 
 // SystemdModule is the module used to control systemd units
 type SystemdModule struct {
-	cmd     string        // the built command
-	sudo    bool          // does the command need to be run as root
-	timeout time.Duration // timeout to execute the command
+	cmd      string        // the built command
+	sudo     bool          // does the command need to be run as root
+	timeout  time.Duration // timeout to execute the command
+	timewait time.Duration // waiting time after the command is executed
 }
 
 // NewSystemdModule builds and returns a SystemdModule object base on
 // given config.
 func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
-	systemctl := "systemctl"
-	if config.OS == MacOS {
-		systemctl = "launchctl"
+	// Generate commands for remote execution
+	var cmd string
+	var sudo bool
+	switch config.OS {
+	case MacOS:
+		cmd, sudo = systemdModuleCmdWithMacOS(config)
+	default:
+		cmd, sudo = systemdModuleCmdWithLinux(config)
 	}
 
-	// Mac Os doesn't need sudo
-	sudo := config.OS != MacOS
+	mod := &SystemdModule{
+		cmd:      cmd,
+		sudo:     sudo,
+		timeout:  config.Timeout,
+		timewait: config.TimeWait,
+	}
 
-	if config.Force && config.OS == Linux {
+	// the default TimeoutStopSec of systemd is 90s, after which it sends a SIGKILL
+	// to remaining processes, set the default value slightly larger than it
+	if config.Timeout == 0 {
+		mod.timeout = time.Second * 100
+	}
+
+	// The default timewait in the macos environment is 1 second
+	if config.TimeWait == 0 && config.OS == MacOS {
+		mod.timewait = time.Second
+	}
+
+	return mod
+}
+
+// systemdModuleCmdWithLinux Generate commands for remote execution on linux
+func systemdModuleCmdWithLinux(config SystemdModuleConfig) (cmd string, sudo bool) {
+	systemctl := "systemctl"
+
+	if config.Force {
 		systemctl = fmt.Sprintf("%s --force", systemctl)
 	}
 
-	if config.Signal != "" && config.OS == Linux {
+	if config.Signal != "" {
 		systemctl = fmt.Sprintf("%s --signal %s", systemctl, config.Signal)
 	}
 
@@ -79,13 +108,23 @@ func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 		systemctl = fmt.Sprintf("%s --%s", systemctl, config.Scope)
 	}
 
-	cmd := fmt.Sprintf("%s %s %s",
+	cmd = fmt.Sprintf("%s %s %s",
 		systemctl, strings.ToLower(config.Action), config.Unit)
 
-	if config.ReloadDaemon && config.OS == Linux {
+	if config.ReloadDaemon {
 		cmd = fmt.Sprintf("%s daemon-reload && %s",
 			systemctl, cmd)
 	}
+	return cmd, sudo
+}
+
+// systemdModuleCmdWithMacOS Generate commands for remote execution on MacOS
+func systemdModuleCmdWithMacOS(config SystemdModuleConfig) (cmd string, sudo bool) {
+	sudo = false // macos does not need sudo permissions
+	systemctl := "launchctl"
+
+	cmd = fmt.Sprintf("%s %s %s",
+		systemctl, strings.ToLower(config.Action), config.Unit)
 
 	// mac os need load pist
 	if config.OS == MacOS && (config.Action == "enable" || config.Action == "load") {
@@ -95,23 +134,13 @@ func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 		cmd = fmt.Sprintf("launchctl unload -w %s.plist ", filepath.Join(PlistDir, config.Unit))
 	}
 
-	mod := &SystemdModule{
-		cmd:     cmd,
-		sudo:    sudo,
-		timeout: config.Timeout,
-	}
-
-	// the default TimeoutStopSec of systemd is 90s, after which it sends a SIGKILL
-	// to remaining processes, set the default value slightly larger than it
-	if config.Timeout == 0 {
-		mod.timeout = time.Second * 100
-	}
-
-	return mod
+	return cmd, sudo
 }
 
 // Execute passes the command to executor and returns its results, the executor
 // should be already initialized.
 func (mod *SystemdModule) Execute(ctx context.Context, exec ctxt.Executor) ([]byte, []byte, error) {
-	return exec.Execute(ctx, mod.cmd, mod.sudo, mod.timeout)
+	stdout, stderr, err := exec.Execute(ctx, mod.cmd, mod.sudo, mod.timeout)
+	time.Sleep(mod.timewait)
+	return stdout, stderr, err
 }

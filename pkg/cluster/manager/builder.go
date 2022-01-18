@@ -53,9 +53,19 @@ func buildReloadPromTasks(
 		if deletedNodes.Exist(inst.ID()) {
 			continue
 		}
-		t := task.NewBuilder(logger).
-			SystemCtl(inst.GetHost(), inst.ServiceName(), "reload", inst.OS(), true).
-			BuildAsStep(fmt.Sprintf("  - Reload %s -> %s", inst.ComponentName(), inst.ID()))
+		var t *task.StepDisplay
+		switch inst.OS() {
+		case spec.MacOS:
+			t = task.NewBuilder(logger).
+				SystemCtl(inst.GetHost(), inst.ServiceName(), "stop", inst.OS(), true).
+				SystemCtl(inst.GetHost(), inst.ServiceName(), "start", inst.OS(), true).
+				BuildAsStep(fmt.Sprintf("  - ReStart %s -> %s", inst.ComponentName(), inst.ID()))
+		default:
+			t = task.NewBuilder(logger).
+				SystemCtl(inst.GetHost(), inst.ServiceName(), "reload", inst.OS(), true).
+				BuildAsStep(fmt.Sprintf("  - Reload %s -> %s", inst.ComponentName(), inst.ID()))
+		}
+
 		tasks = append(tasks, t)
 	}
 	return tasks
@@ -285,7 +295,8 @@ func buildScaleOutTask(
 			ParallelStep("+ Init monitor config", gOpt.Force, monitorConfigTasks...)
 	}
 
-	if afterDeploy != nil {
+	// stage 2 does not need to enable components
+	if afterDeploy != nil && !opt.Stage1 {
 		afterDeploy(builder, newPart, gOpt)
 	}
 
