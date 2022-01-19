@@ -166,7 +166,7 @@ func ScaleInDMCluster(
 
 			instCount[instance.GetHost()]--
 			if instCount[instance.GetHost()] == 0 {
-				if err := operator.DeletePublicKey(ctx, instance.GetHost(), instance.OS() != spec.MacOS); err != nil {
+				if err := operator.DeletePublicKey(ctx, instance.GetHost(), instance.OS()); err != nil {
 					return errors.Annotatef(err, "failed to delete public key")
 				}
 			}

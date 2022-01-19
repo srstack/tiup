@@ -91,6 +91,7 @@ func NewSystemdModule(config SystemdModuleConfig) *SystemdModule {
 // systemdModuleCmdWithLinux Generate commands for remote execution on linux
 func systemdModuleCmdWithLinux(config SystemdModuleConfig) (cmd string, sudo bool) {
 	systemctl := "systemctl"
+	sudo = true
 
 	if config.Force {
 		systemctl = fmt.Sprintf("%s --force", systemctl)

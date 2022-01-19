@@ -42,9 +42,10 @@ var (
 )
 
 type hostInfo struct {
-	ssh  int    // ssh port of host
-	os   string // operating system
-	arch string // cpu architecture
+	ssh   int    // ssh port of host
+	os    string // operating system
+	arch  string // cpu architecture
+	count int
 	// vendor string
 }
 
@@ -67,20 +68,23 @@ func Enable(
 	components = FilterComponent(components, roleFilter)
 	monitoredOptions := cluster.GetMonitoredOptions()
 	noAgentHosts := set.NewStringSet()
-
 	hosts := map[string]hostInfo{}
 
-	cluster.IterInstance(func(inst spec.Instance) {
-		if inst.IgnoreMonitorAgent() {
-			noAgentHosts.Insert(inst.GetHost())
-		} else {
-			hosts[inst.GetHost()] = hostInfo{
-				ssh:  inst.GetSSHPort(),
-				os:   inst.OS(),
-				arch: inst.Arch(),
+	cluster.IterInstance(
+		func(inst spec.Instance) {
+			if inst.IgnoreMonitorAgent() {
+				noAgentHosts.Insert(inst.GetHost())
+			} else {
+				// set host info
+				info := hosts[inst.GetHost()]
+				info.ssh = inst.GetSSHPort()
+				info.arch = inst.Arch()
+				info.os = inst.OS()
+				info.count++
+				hosts[inst.GetHost()] = info
 			}
-		}
-	})
+		},
+	)
 
 	for _, comp := range components {
 		insts := FilterInstance(comp.Instances(), nodeFilter)
@@ -88,10 +92,24 @@ func Enable(
 		if err != nil {
 			return errors.Annotatef(err, "failed to enable/disable %s", comp.Name())
 		}
+		for _, inst := range insts {
+			if !inst.IgnoreMonitorAgent() {
+				info := hosts[inst.GetHost()]
+				info.count--
+				hosts[inst.GetHost()] = info
+			}
+		}
 	}
 
 	if monitoredOptions == nil {
 		return nil
+	}
+
+	for host, info := range hosts {
+		// don't disable the monitor component if the instance's host contain other components
+		if info.count != 0 {
+			delete(hosts, host)
+		}
 	}
 
 	return EnableMonitored(ctx, hosts, noAgentHosts, monitoredOptions, options.OptTimeout, isEnable)
@@ -115,6 +133,12 @@ func Start(
 	cluster.IterInstance(func(inst spec.Instance) {
 		if inst.IgnoreMonitorAgent() {
 			noAgentHosts.Insert(inst.GetHost())
+		} else {
+			hosts[inst.GetHost()] = hostInfo{
+				ssh:  inst.GetSSHPort(),
+				arch: inst.Arch(),
+				os:   inst.OS(),
+			}
 		}
 	})
 
@@ -123,15 +147,6 @@ func Start(
 		err := StartComponent(ctx, insts, noAgentHosts, options, tlsCfg)
 		if err != nil {
 			return errors.Annotatef(err, "failed to start %s", comp.Name())
-		}
-		for _, inst := range insts {
-			if !inst.IgnoreMonitorAgent() {
-				hosts[inst.GetHost()] = hostInfo{
-					ssh:  inst.GetSSHPort(),
-					arch: inst.Arch(),
-					os:   inst.OS(),
-				}
-			}
 		}
 	}
 
@@ -155,11 +170,20 @@ func Stop(
 	components = FilterComponent(components, roleFilter)
 	monitoredOptions := cluster.GetMonitoredOptions()
 	noAgentHosts := set.NewStringSet()
+
 	hosts := map[string]hostInfo{}
 
 	cluster.IterInstance(func(inst spec.Instance) {
 		if inst.IgnoreMonitorAgent() {
 			noAgentHosts.Insert(inst.GetHost())
+		} else {
+			// set host info
+			info := hosts[inst.GetHost()]
+			info.ssh = inst.GetSSHPort()
+			info.arch = inst.Arch()
+			info.os = inst.OS()
+			info.count++
+			hosts[inst.GetHost()] = info
 		}
 	})
 
@@ -171,17 +195,22 @@ func Stop(
 		}
 		for _, inst := range insts {
 			if !inst.IgnoreMonitorAgent() {
-				hosts[inst.GetHost()] = hostInfo{
-					ssh:  inst.GetSSHPort(),
-					arch: inst.Arch(),
-					os:   inst.OS(),
-				}
+				info := hosts[inst.GetHost()]
+				info.count--
+				hosts[inst.GetHost()] = info
 			}
 		}
 	}
 
 	if monitoredOptions == nil {
 		return nil
+	}
+
+	for host, info := range hosts {
+		// don't stop the monitor component if the instance's host contain other components
+		if info.count != 0 {
+			delete(hosts, host)
+		}
 	}
 
 	if err := StopMonitored(ctx, hosts, noAgentHosts, monitoredOptions, options.OptTimeout); err != nil && !options.Force {

@@ -43,18 +43,16 @@ func Destroy(
 	options Options,
 ) error {
 	coms := cluster.ComponentsByStopOrder()
+	hosts := map[string]hostInfo{}
 
-	instCount := map[string]int{}
-
-	// determine the need for sudo permissions
-	sudo := true
 	cluster.IterInstance(func(inst spec.Instance) {
-		instCount[inst.GetHost()]++
-
-		// MacOS does not need sudo permissions
-		if sudo && inst.OS() == spec.MacOS {
-			sudo = false
-		}
+		// set host info
+		info := hosts[inst.GetHost()]
+		info.ssh = inst.GetSSHPort()
+		info.arch = inst.Arch()
+		info.os = inst.OS()
+		info.count++
+		hosts[inst.GetHost()] = info
 	})
 
 	for _, com := range coms {
@@ -64,8 +62,10 @@ func Destroy(
 			return errors.Annotatef(err, "failed to destroy %s", com.Name())
 		}
 		for _, inst := range insts {
-			instCount[inst.GetHost()]--
-			if instCount[inst.GetHost()] == 0 {
+			info := hosts[inst.GetHost()]
+			info.count--
+			hosts[inst.GetHost()] = info
+			if info.count == 0 {
 				if cluster.GetMonitoredOptions() != nil {
 					if err := DestroyMonitored(ctx, inst, cluster.GetMonitoredOptions(), options.OptTimeout); err != nil && !options.Force {
 						return err
@@ -78,15 +78,15 @@ func Destroy(
 	gOpts := cluster.BaseTopo().GlobalOptions
 
 	// Delete all global deploy directory
-	for host := range instCount {
+	for host := range hosts {
 		if err := DeleteGlobalDirs(ctx, host, gOpts); err != nil {
 			return nil
 		}
 	}
 
 	// after all things done, try to remove SSH public key
-	for host := range instCount {
-		if err := DeletePublicKey(ctx, host, sudo); err != nil {
+	for host, info := range hosts {
+		if err := DeletePublicKey(ctx, host, info.os); err != nil {
 			return nil
 		}
 	}
@@ -149,7 +149,7 @@ func StopAndDestroyInstance(ctx context.Context, cluster spec.Topology, instance
 			}
 		}
 
-		if err := DeletePublicKey(ctx, instance.GetHost(), instance.OS() != spec.MacOS); err != nil {
+		if err := DeletePublicKey(ctx, instance.GetHost(), instance.OS()); err != nil {
 			if !ignoreErr {
 				return errors.Annotatef(err, "failed to delete public key")
 			}
@@ -201,7 +201,7 @@ func DeleteGlobalDirs(ctx context.Context, host string, options *spec.GlobalOpti
 }
 
 // DeletePublicKey deletes the SSH public key from host
-func DeletePublicKey(ctx context.Context, host string, sudo bool) error {
+func DeletePublicKey(ctx context.Context, host, osInfo string) error {
 	e := ctxt.GetInner(ctx).Get(host)
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 	logger.Infof("Delete public key %s", host)
@@ -213,26 +213,19 @@ func DeletePublicKey(ctx context.Context, host string, sudo bool) error {
 
 	pubKey := string(bytes.TrimSpace(publicKey))
 	pubKey = strings.ReplaceAll(pubKey, "/", "\\/")
-	pubKeysFile := executor.FindSSHAuthorizedKeysFile(ctx, e, sudo)
+	pubKeysFile := executor.FindSSHAuthorizedKeysFile(ctx, e, osInfo != spec.MacOS)
 
-	// delete the public key with Linux `sed` toolkit
-
-	// in mac os
-	// -i extension
-	// Edit files in-place similarly to -I, but treat each file independently from other files.
-	// In particular, line numbers in each file start at 1, the “$” address matches the last line of the current file, and
-	// address ranges are limited to the current file.  (See Sed Addresses.)
-	// The net result is as though each file were edited by a separate sed instance.
-	// sudo is false means that run in mac os
-	backInfo := ""
-	if !sudo {
-		backInfo = `""`
+	// cmd
+	cmd := fmt.Sprintf("sed -i '/%s/d' %s", pubKey, pubKeysFile)
+	if osInfo == spec.MacOS {
+		cmd = fmt.Sprintf(`sed -i "" "/%s/d" %s`, pubKey, pubKeysFile)
 	}
 
+	// delete the public key with Linux `sed` toolkit
 	c := module.ShellModuleConfig{
-		Command:  fmt.Sprintf(`sed -i %s "/%s/d" %s`, backInfo, pubKey, pubKeysFile),
+		Command:  cmd,
 		UseShell: false,
-		Sudo:     sudo,
+		Sudo:     osInfo != spec.MacOS,
 	}
 	shell := module.NewShellModule(c)
 	stdout, stderr, err := shell.Execute(ctx, e)
@@ -254,11 +247,6 @@ func DeletePublicKey(ctx context.Context, host string, sudo bool) error {
 
 // DestroyMonitored destroy the monitored service.
 func DestroyMonitored(ctx context.Context, inst spec.Instance, options *spec.MonitoredOptions, timeout uint64) error {
-	// mac os cannot install monitored
-	if inst.OS() == spec.MacOS {
-		return nil
-	}
-
 	e := ctxt.GetInner(ctx).Get(inst.GetHost())
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 
