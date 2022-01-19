@@ -126,7 +126,7 @@ func systemdModuleCmdWithMacOS(config SystemdModuleConfig) (cmd string, sudo boo
 	cmd = fmt.Sprintf("%s %s %s",
 		systemctl, strings.ToLower(config.Action), config.Unit)
 
-	// mac os need load pist
+	// mac os need load plist
 	if config.OS == MacOS && (config.Action == "enable" || config.Action == "load") {
 		cmd = fmt.Sprintf("launchctl load -w %s.plist ", filepath.Join(PlistDir, config.Unit))
 	}
