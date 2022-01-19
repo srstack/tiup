@@ -268,8 +268,13 @@ func DestroyMonitored(ctx context.Context, inst spec.Instance, options *spec.Mon
 			options.DeployDir, inst.InstanceName())
 	}
 
-	delPaths = append(delPaths, fmt.Sprintf("/etc/systemd/system/%s-%d.service", spec.ComponentNodeExporter, options.NodeExporterPort))
-	delPaths = append(delPaths, fmt.Sprintf("/etc/systemd/system/%s-%d.service", spec.ComponentBlackboxExporter, options.BlackboxExporterPort))
+	if inst.OS() == spec.MacOS {
+		delPaths = append(delPaths, fmt.Sprintf("%s/com.pingcap.%s.%d.plist", inst.ServicePath(), spec.ComponentNodeExporter, options.NodeExporterPort))
+		delPaths = append(delPaths, fmt.Sprintf("%s/com.pingcap.%s.%d.plist", inst.ServicePath(), spec.ComponentBlackboxExporter, options.BlackboxExporterPort))
+	} else {
+		delPaths = append(delPaths, fmt.Sprintf("%s/%s-%d.service", inst.ServicePath(), spec.ComponentNodeExporter, options.NodeExporterPort))
+		delPaths = append(delPaths, fmt.Sprintf("%s/%s-%d.service", inst.ServicePath(), spec.ComponentBlackboxExporter, options.BlackboxExporterPort))
+	}
 
 	c := module.ShellModuleConfig{
 		Command:  fmt.Sprintf("rm -rf %s;", strings.Join(delPaths, " ")),

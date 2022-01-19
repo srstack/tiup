@@ -614,6 +614,7 @@ func buildInitMonitoredConfigTasks(
 					name,
 					comp,
 					host,
+					info.os,
 					globalOptions.ResourceControl,
 					monitoredOptions,
 					globalOptions.User,

@@ -63,11 +63,12 @@ var (
 	)
 )
 
+// os type
 const (
-	// MacOS os type
-	MacOS = "darwin"
-	// Linux os type
-	Linux = "linux"
+	MacOS            = "darwin"
+	MacServicePath   = "~/Library/LaunchAgents"
+	Linux            = "linux"
+	LinuxServicePath = "/etc/systemd/system"
 )
 
 // Component represents a component of the cluster.
@@ -347,9 +348,9 @@ func (i *BaseInstance) ServiceName() string {
 func (i *BaseInstance) ServicePath() string {
 	switch i.OS() {
 	case MacOS:
-		return "~/Library/LaunchAgents"
+		return MacServicePath
 	default:
-		return "/etc/systemd/system"
+		return LinuxServicePath
 	}
 }
 

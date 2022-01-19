@@ -37,6 +37,7 @@ type MonitoredConfig struct {
 	name       string
 	component  string
 	host       string
+	os         string
 	globResCtl meta.ResourceControl
 	options    *spec.MonitoredOptions
 	deployUser string
@@ -60,7 +61,7 @@ func (m *MonitoredConfig) Execute(ctx context.Context) error {
 		return err
 	}
 
-	if err := m.syncMonitoredSystemConfig(ctx, exec, m.component, ports[m.component]); err != nil {
+	if err := m.syncMonitoredSystemConfig(ctx, exec, m.component, m.os, ports[m.component]); err != nil {
 		return err
 	}
 
@@ -85,7 +86,7 @@ func (m *MonitoredConfig) Execute(ctx context.Context) error {
 	return m.syncMonitoredScript(ctx, exec, m.component, cfg)
 }
 
-func (m *MonitoredConfig) syncMonitoredSystemConfig(ctx context.Context, exec ctxt.Executor, comp string, port int) (err error) {
+func (m *MonitoredConfig) syncMonitoredSystemConfig(ctx context.Context, exec ctxt.Executor, comp, os string, port int) (err error) {
 	sysCfg := filepath.Join(m.paths.Cache, fmt.Sprintf("%s-%s-%d.service", comp, m.host, port))
 
 	// insert checkpoint
@@ -117,7 +118,13 @@ func (m *MonitoredConfig) syncMonitoredSystemConfig(ctx context.Context, exec ct
 	if err := exec.Transfer(ctx, sysCfg, tgt, false, 0, false); err != nil {
 		return err
 	}
-	if outp, errp, err := exec.Execute(ctx, fmt.Sprintf("mv %s /etc/systemd/system/%s-%d.service", tgt, comp, port), true); err != nil {
+
+	dst := fmt.Sprintf("%s/%s-%d.service", spec.LinuxServicePath, comp, port)
+	if m.os == spec.MacOS {
+		dst = fmt.Sprintf("%s/com.pingcap.%s.%d.plist", spec.MacServicePath, comp, port)
+	}
+
+	if outp, errp, err := exec.Execute(ctx, fmt.Sprintf("mv %s %s", tgt, dst), true); err != nil {
 		if len(outp) > 0 {
 			fmt.Println(string(outp))
 		}
