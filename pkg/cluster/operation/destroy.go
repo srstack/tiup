@@ -250,12 +250,12 @@ func DestroyMonitored(ctx context.Context, inst spec.Instance, options *spec.Mon
 	e := ctxt.GetInner(ctx).Get(inst.GetHost())
 	logger := ctx.Value(logprinter.ContextKeyLogger).(*logprinter.Logger)
 
+	logger.Infof("Destroying monitored %s", inst.GetHost())
 	if inst.IgnoreMonitorAgent() {
-		logger.Infof("Ignore destroying monitored %s", inst.GetHost())
+		logger.Infof("\tIgnore destroy monitored %s", inst.GetHost())
 		return nil
 	}
 
-	logger.Infof("Destroying monitored %s", inst.GetHost())
 	logger.Infof("\tDestroying instance %s", inst.GetHost())
 
 	// Stop by systemd.
