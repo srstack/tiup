@@ -142,7 +142,6 @@ func (m *Manager) checkCertificate(clusterName string) error {
 	}
 	return nil
 }
-<<<<<<< HEAD
 
 // loadCertificate
 // certificate file exists and reload is true
@@ -159,5 +158,3 @@ func (m *Manager) loadCertificate(clusterName string, globalOptions *spec.Global
 
 	return err
 }
-=======
->>>>>>> pingcap-master
