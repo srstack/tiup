@@ -31,7 +31,6 @@ import (
 	"github.com/pingcap/tiup/pkg/cluster/spec"
 	"github.com/pingcap/tiup/pkg/cluster/task"
 	"github.com/pingcap/tiup/pkg/environment"
-
 	"github.com/pingcap/tiup/pkg/repository"
 	"github.com/pingcap/tiup/pkg/set"
 	"github.com/pingcap/tiup/pkg/tui"
@@ -194,6 +193,7 @@ func (m *Manager) Deploy(
 					"for instances imported from tidb-ansible and make no sense when " +
 					"deploying new instances, please delete the line or set it to 'false' for new instances")
 			return // skip the host to avoid issues
+
 		}
 	})
 

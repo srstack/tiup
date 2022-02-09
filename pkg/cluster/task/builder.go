@@ -28,6 +28,7 @@ import (
 	"github.com/pingcap/tiup/pkg/meta"
 	"github.com/pingcap/tiup/pkg/proxy"
 	"github.com/pingcap/tiup/pkg/tui"
+
 	"github.com/pingcap/tiup/pkg/utils"
 )
 

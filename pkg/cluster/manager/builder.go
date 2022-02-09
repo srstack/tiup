@@ -98,30 +98,30 @@ func buildScaleOutTask(
 		return nil, err
 	}
 
-	// Initialize the environments
-	initializedHosts := set.NewStringSet()
-	metadata.GetTopology().IterInstance(func(instance spec.Instance) {
-		initializedHosts.Insert(instance.GetHost())
-	})
-	// uninitializedHosts are hosts which haven't been initialized yet
-	uninitializedHosts := make(map[string]hostInfo) // host -> ssh-port, os, arch
-	newPart.IterInstance(func(instance spec.Instance) {
-		host := instance.GetHost()
-		if initializedHosts.Exist(host) {
-			return
-		}
-		if _, found := uninitializedHosts[host]; found {
-			return
-		}
-
-		uninitializedHosts[host] = hostInfo{
-			ssh:  instance.GetSSHPort(),
-			os:   instance.OS(),
-			arch: instance.Arch(),
-		}
-	})
-	// tasks which are used to initialize environment
-	envInitTasks := buildEnvInitTasks(m, name, metadata, opt, gOpt, s, p, uninitializedHosts)
+		// Initialize the environments
+		initializedHosts := set.NewStringSet()
+		metadata.GetTopology().IterInstance(func(instance spec.Instance) {
+			initializedHosts.Insert(instance.GetHost())
+		})
+		// uninitializedHosts are hosts which haven't been initialized yet
+		uninitializedHosts := make(map[string]hostInfo) // host -> ssh-port, os, arch
+		newPart.IterInstance(func(instance spec.Instance) {
+			host := instance.GetHost()
+			if initializedHosts.Exist(host) {
+				return
+			}
+			if _, found := uninitializedHosts[host]; found {
+				return
+			}
+	
+			uninitializedHosts[host] = hostInfo{
+				ssh:  instance.GetSSHPort(),
+				os:   instance.OS(),
+				arch: instance.Arch(),
+			}
+		})
+		// tasks which are used to initialize environment
+		envInitTasks := buildEnvInitTasks(m, name, metadata, opt, gOpt, s, p, uninitializedHosts)
 
 	// Download missing component
 	downloadCompTasks = buildDownloadCompTasks(
@@ -131,6 +131,7 @@ func buildScaleOutTask(
 		gOpt,
 		m.bindVersion,
 	)
+
 
 	sshType := topo.BaseTopo().GlobalOptions.SSHType
 
@@ -155,6 +156,7 @@ func buildScaleOutTask(
 			Mkdir(base.User, inst.GetHost(), inst.OS(), deployDirs...).
 			Mkdir(base.User, inst.GetHost(), inst.OS(), dataDirs...).
 			Mkdir(base.User, inst.GetHost(), inst.OS(), logDir)
+
 
 		srcPath := ""
 		if patchedComponents.Exist(inst.ComponentName()) {
@@ -209,6 +211,7 @@ func buildScaleOutTask(
 			deployCompTasks = append(deployCompTasks, tb.BuildAsStep(fmt.Sprintf("  - Deploy instance %s -> %s", inst.ComponentName(), inst.ID())))
 		}
 	})
+
 
 	// init scale out config
 	scaleOutConfigTasks := buildScaleConfigTasks(m, name, topo, newPart, base, gOpt, p)
@@ -293,6 +296,7 @@ func buildScaleOutTask(
 			ParallelStep("+ Copy certificate to remote host", gOpt.Force, certificateTasks...).
 			ParallelStep("+ Generate scale-out config", gOpt.Force, scaleOutConfigTasks...).
 			ParallelStep("+ Init monitor config", gOpt.Force, monitorConfigTasks...)
+
 	}
 
 	// stage 2 does not need to enable components
@@ -317,6 +321,7 @@ func buildScaleOutTask(
 		}).
 			ParallelStep("+ Refresh components conifgs", gOpt.Force, refreshConfigTasks...).
 			ParallelStep("+ Reload prometheus", gOpt.Force, buildReloadPromTasks(metadata.GetTopology(), m.logger, gOpt)...)
+
 	}
 
 	// remove scale-out file lock
@@ -353,6 +358,7 @@ func buildScaleConfigTasks(
 		// log dir will always be with values, but might not used by the component
 		logDir := spec.Abs(base.User, inst.LogDir())
 
+
 		t := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), base.User, gOpt, p, topo.BaseTopo().GlobalOptions.SSHType).
 			ScaleConfig(
 				name,
@@ -367,11 +373,13 @@ func buildScaleConfigTasks(
 					Log:    logDir,
 				},
 			).BuildAsStep(fmt.Sprintf("  - Generate scale-out config %s -> %s", inst.ComponentName(), inst.ID()))
+
 		scaleConfigTasks = append(scaleConfigTasks, t)
 	})
 
 	return scaleConfigTasks
 }
+
 
 // buildEnvInitTasks  init remote host environment
 func buildEnvInitTasks(
@@ -436,6 +444,7 @@ func buildEnvInitTasks(
 	return envInitTasks
 }
 
+
 type hostInfo struct {
 	ssh  int    // ssh port of host
 	os   string // operating system
@@ -498,6 +507,7 @@ func buildMonitoredDeployTask(
 			// Deploy component
 			tb := task.NewSimpleUerSSH(m.logger, host, info.ssh, globalOptions.User, gOpt, p, globalOptions.SSHType).
 				Mkdir(globalOptions.User, host, info.os, deployDirs...).
+
 				CopyComponent(
 					comp,
 					info.os,
@@ -545,7 +555,6 @@ func buildMonitoredCertificateTasks(
 				// Deploy component
 				tb := task.NewSimpleUerSSH(m.logger, host, info.ssh, globalOptions.User, gOpt, p, globalOptions.SSHType).
 					Mkdir(globalOptions.User, host, info.os, tlsDir)
-
 				if comp == spec.ComponentBlackboxExporter {
 					ca, innerr := crypto.ReadCA(
 						name,
@@ -608,7 +617,6 @@ func buildInitMonitoredConfigTasks(
 			// log dir will always be with values, but might not used by the component
 			logDir := spec.Abs(globalOptions.User, monitoredOptions.LogDir)
 			// Generate configs
-
 			t := task.NewSimpleUerSSH(logger, host, info.ssh, globalOptions.User, gOpt, p, globalOptions.SSHType).
 				MonitoredConfig(
 					name,
@@ -774,7 +782,6 @@ func buildTLSTask(
 	if hasImported {
 		if err := spec.HandleImportPathMigration(name); err != nil {
 			return task.NewBuilder(m.logger).Build(), err
-		}
 	}
 
 	// monitor

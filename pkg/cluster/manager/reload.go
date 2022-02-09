@@ -26,7 +26,6 @@ import (
 	"github.com/pingcap/tiup/pkg/cluster/executor"
 	operator "github.com/pingcap/tiup/pkg/cluster/operation"
 	"github.com/pingcap/tiup/pkg/cluster/spec"
-
 	"github.com/pingcap/tiup/pkg/tui"
 )
 

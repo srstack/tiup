@@ -147,6 +147,7 @@ func (m *Manager) DestroyTombstone(
 	// Destroy ignore error and force exec
 	gOpt.IgnoreConfigCheck = true
 	gOpt.Force = true
+
 	regenConfigTasks, _ := buildInitConfigTasks(m, name, topo, base, gOpt, nodes)
 
 	t := b.
