@@ -98,30 +98,30 @@ func buildScaleOutTask(
 		return nil, err
 	}
 
-		// Initialize the environments
-		initializedHosts := set.NewStringSet()
-		metadata.GetTopology().IterInstance(func(instance spec.Instance) {
-			initializedHosts.Insert(instance.GetHost())
-		})
-		// uninitializedHosts are hosts which haven't been initialized yet
-		uninitializedHosts := make(map[string]hostInfo) // host -> ssh-port, os, arch
-		newPart.IterInstance(func(instance spec.Instance) {
-			host := instance.GetHost()
-			if initializedHosts.Exist(host) {
-				return
-			}
-			if _, found := uninitializedHosts[host]; found {
-				return
-			}
-	
-			uninitializedHosts[host] = hostInfo{
-				ssh:  instance.GetSSHPort(),
-				os:   instance.OS(),
-				arch: instance.Arch(),
-			}
-		})
-		// tasks which are used to initialize environment
-		envInitTasks := buildEnvInitTasks(m, name, metadata, opt, gOpt, s, p, uninitializedHosts)
+	// Initialize the environments
+	initializedHosts := set.NewStringSet()
+	metadata.GetTopology().IterInstance(func(instance spec.Instance) {
+		initializedHosts.Insert(instance.GetHost())
+	})
+	// uninitializedHosts are hosts which haven't been initialized yet
+	uninitializedHosts := make(map[string]hostInfo) // host -> ssh-port, os, arch
+	newPart.IterInstance(func(instance spec.Instance) {
+		host := instance.GetHost()
+		if initializedHosts.Exist(host) {
+			return
+		}
+		if _, found := uninitializedHosts[host]; found {
+			return
+		}
+
+		uninitializedHosts[host] = hostInfo{
+			ssh:  instance.GetSSHPort(),
+			os:   instance.OS(),
+			arch: instance.Arch(),
+		}
+	})
+	// tasks which are used to initialize environment
+	envInitTasks := buildEnvInitTasks(m, name, metadata, opt, gOpt, s, p, uninitializedHosts)
 
 	// Download missing component
 	downloadCompTasks = buildDownloadCompTasks(
@@ -131,7 +131,6 @@ func buildScaleOutTask(
 		gOpt,
 		m.bindVersion,
 	)
-
 
 	sshType := topo.BaseTopo().GlobalOptions.SSHType
 
@@ -156,7 +155,6 @@ func buildScaleOutTask(
 			Mkdir(base.User, inst.GetHost(), inst.OS(), deployDirs...).
 			Mkdir(base.User, inst.GetHost(), inst.OS(), dataDirs...).
 			Mkdir(base.User, inst.GetHost(), inst.OS(), logDir)
-
 
 		srcPath := ""
 		if patchedComponents.Exist(inst.ComponentName()) {
@@ -211,7 +209,6 @@ func buildScaleOutTask(
 			deployCompTasks = append(deployCompTasks, tb.BuildAsStep(fmt.Sprintf("  - Deploy instance %s -> %s", inst.ComponentName(), inst.ID())))
 		}
 	})
-
 
 	// init scale out config
 	scaleOutConfigTasks := buildScaleConfigTasks(m, name, topo, newPart, base, gOpt, p)
@@ -358,7 +355,6 @@ func buildScaleConfigTasks(
 		// log dir will always be with values, but might not used by the component
 		logDir := spec.Abs(base.User, inst.LogDir())
 
-
 		t := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), base.User, gOpt, p, topo.BaseTopo().GlobalOptions.SSHType).
 			ScaleConfig(
 				name,
@@ -379,7 +375,6 @@ func buildScaleConfigTasks(
 
 	return scaleConfigTasks
 }
-
 
 // buildEnvInitTasks  init remote host environment
 func buildEnvInitTasks(
@@ -444,7 +439,6 @@ func buildEnvInitTasks(
 	return envInitTasks
 }
 
-
 type hostInfo struct {
 	ssh  int    // ssh port of host
 	os   string // operating system
@@ -507,7 +501,6 @@ func buildMonitoredDeployTask(
 			// Deploy component
 			tb := task.NewSimpleUerSSH(m.logger, host, info.ssh, globalOptions.User, gOpt, p, globalOptions.SSHType).
 				Mkdir(globalOptions.User, host, info.os, deployDirs...).
-
 				CopyComponent(
 					comp,
 					info.os,
@@ -782,8 +775,9 @@ func buildTLSTask(
 	if hasImported {
 		if err := spec.HandleImportPathMigration(name); err != nil {
 			return task.NewBuilder(m.logger).Build(), err
+		}
 	}
-
+	
 	// monitor
 	uniqueHosts, noAgentHosts := getMonitorHosts(topo)
 	moniterCertificateTasks, err := buildMonitoredCertificateTasks(
@@ -871,7 +865,7 @@ func buildCertificateTasks(
 			tlsDir := filepath.Join(deployDir, spec.TLSCertKeyDir)
 
 			tb := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), base.User, gOpt, p, topo.BaseTopo().GlobalOptions.SSHType).
-				Mkdir(base.User, inst.GetHost(), inst.OS(), deployDir, tlsDir)
+				Mkdir(base.User, inst.GetHost(), deployDir, tlsDir)
 
 			ca, err := crypto.ReadCA(
 				name,
