@@ -293,7 +293,6 @@ func buildScaleOutTask(
 			ParallelStep("+ Copy certificate to remote host", gOpt.Force, certificateTasks...).
 			ParallelStep("+ Generate scale-out config", gOpt.Force, scaleOutConfigTasks...).
 			ParallelStep("+ Init monitor config", gOpt.Force, monitorConfigTasks...)
-
 	}
 
 	// stage 2 does not need to enable components
@@ -318,7 +317,6 @@ func buildScaleOutTask(
 		}).
 			ParallelStep("+ Refresh components conifgs", gOpt.Force, refreshConfigTasks...).
 			ParallelStep("+ Reload prometheus", gOpt.Force, buildReloadPromTasks(metadata.GetTopology(), m.logger, gOpt)...)
-
 	}
 
 	// remove scale-out file lock
@@ -777,7 +775,7 @@ func buildTLSTask(
 			return task.NewBuilder(m.logger).Build(), err
 		}
 	}
-	
+
 	// monitor
 	uniqueHosts, noAgentHosts := getMonitorHosts(topo)
 	moniterCertificateTasks, err := buildMonitoredCertificateTasks(

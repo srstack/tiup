@@ -193,7 +193,6 @@ func (m *Manager) Deploy(
 					"for instances imported from tidb-ansible and make no sense when " +
 					"deploying new instances, please delete the line or set it to 'false' for new instances")
 			return // skip the host to avoid issues
-
 		}
 	})
 
