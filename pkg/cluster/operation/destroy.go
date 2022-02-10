@@ -301,12 +301,12 @@ func DestroyMonitored(ctx context.Context, inst spec.Instance, options *spec.Mon
 		return errors.Annotatef(err, "failed to destroy monitored: %s", inst.GetHost())
 	}
 
-	if err := spec.PortStopped(ctx, e, options.NodeExporterPort, spec.Linux, timeout); err != nil {
+	if err := spec.PortStopped(ctx, e, options.NodeExporterPort, inst.OS(), timeout); err != nil {
 		str := fmt.Sprintf("%s failed to destroy node exportoer: %s", inst.GetHost(), err)
 		logger.Errorf(str)
 		return errors.Annotatef(err, str)
 	}
-	if err := spec.PortStopped(ctx, e, options.BlackboxExporterPort, spec.Linux, timeout); err != nil {
+	if err := spec.PortStopped(ctx, e, options.BlackboxExporterPort, inst.OS(), timeout); err != nil {
 		str := fmt.Sprintf("%s failed to destroy blackbox exportoer: %s", inst.GetHost(), err)
 		logger.Errorf(str)
 		return errors.Annotatef(err, str)
