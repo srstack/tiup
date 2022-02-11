@@ -44,6 +44,16 @@ const (
 	promMetricStartTimeSeconds = "process_start_time_seconds"
 )
 
+// FullHostType is the type of fullhost operations
+type FullHostType string
+
+const (
+	// FullArchType cpu-arch type
+	FullArchType FullHostType = "Arch"
+	// FullOSType kernel-name
+	FullOSType FullHostType = "OS"
+)
+
 // general role names
 var (
 	RoleMonitor       = "monitor"
@@ -134,16 +144,6 @@ type BaseTopo struct {
 	Grafanas      []*GrafanaSpec
 	Alertmanagers []*AlertmanagerSpec
 }
-
-// FullHostType is the type of fullhost operations
-type FullHostType string
-
-const (
-	// FullArchType cpu-arch type
-	FullArchType FullHostType = "Arch"
-	// FullOSType kernel-name
-	FullOSType FullHostType = "OS"
-)
 
 // Topology represents specification of the cluster.
 type Topology interface {
