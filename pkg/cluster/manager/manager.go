@@ -196,7 +196,8 @@ func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topol
 		hostArchOrOS[inst.GetHost()] = ""
 
 		tf := task.NewSimpleUerSSH(m.logger, inst.GetHost(), inst.GetSSHPort(), user, *gOpt, p, globalSSHType)
-		if s.Password != "" {
+
+		if s.Password != "" || user == "root" {
 			tf = task.NewBuilder(m.logger).
 				RootSSH(
 					inst.GetHost(),
@@ -237,7 +238,7 @@ func (m *Manager) fillHostArchOrOS(s, p *tui.SSHConnectionProps, topo spec.Topol
 		m.logger,
 	)
 	t := task.NewBuilder(m.logger).
-		ParallelStep("+ Detect CPU Arch Or Kernel Name", false, detectTasks...).
+		ParallelStep(fmt.Sprintf("+ Detect CPU %s Name", string(fullType)), false, detectTasks...).
 		Build()
 
 	if err := t.Execute(ctx); err != nil {
