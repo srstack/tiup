@@ -276,7 +276,7 @@ func StopMonitored(ctx context.Context, hosts map[string]hostInfo, noAgentHosts 
 }
 
 // RestartMonitored stop BlackboxExporter and NodeExporter
-func RestartMonitored(ctx context.Context, hosts []string, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64) error {
+func RestartMonitored(ctx context.Context, hosts map[string]hostInfo, noAgentHosts set.StringSet, options *spec.MonitoredOptions, timeout uint64) error {
 	err := StopMonitored(ctx, hosts, noAgentHosts, options, timeout)
 	if err != nil {
 		return err
