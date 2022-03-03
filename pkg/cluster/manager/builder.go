@@ -32,41 +32,40 @@ import (
 	"github.com/pingcap/tiup/pkg/utils"
 )
 
-// buildReloadPromTasks reloads Prometheus configuration
-func buildReloadPromTasks(
+// buildReloadPromTasks reloads Prometheus and Grafana configuration
+func buildReloadPromAndGrafanaTasks(
 	topo spec.Topology,
 	logger *logprinter.Logger,
 	gOpt operator.Options,
 	nodes ...string,
 ) []*task.StepDisplay {
+	var instances []spec.Instance
+	// get promtheus and grafana instance list
 	monitor := spec.FindComponent(topo, spec.ComponentPrometheus)
-	if monitor == nil {
-		return nil
-	}
-	instances := monitor.Instances()
+	grafanas := spec.FindComponent(topo, spec.ComponentGrafana)
+
+	instances = append(instances, monitor.Instances()...)
+	instances = append(instances, grafanas.Instances()...)
+
 	if len(instances) == 0 {
 		return nil
 	}
 	var tasks []*task.StepDisplay
 	deletedNodes := set.NewStringSet(nodes...)
-	for _, inst := range monitor.Instances() {
+	for _, inst := range instances {
 		if deletedNodes.Exist(inst.ID()) {
 			continue
 		}
-		var t *task.StepDisplay
-		switch inst.OS() {
-		case spec.MacOS:
-			t = task.NewBuilder(logger).
-				SystemCtl(inst.GetHost(), inst.ServiceName(), "stop", inst.OS(), true).
-				SystemCtl(inst.GetHost(), inst.ServiceName(), "start", inst.OS(), true).
-				BuildAsStep(fmt.Sprintf("  - ReStart %s -> %s", inst.ComponentName(), inst.ID()))
-		default:
-			t = task.NewBuilder(logger).
-				SystemCtl(inst.GetHost(), inst.ServiceName(), "reload", inst.OS(), true).
-				BuildAsStep(fmt.Sprintf("  - Reload %s -> %s", inst.ComponentName(), inst.ID()))
+		t := task.NewBuilder(logger)
+		if inst.ComponentName() == spec.ComponentPrometheus {
+			// reload Prometheus
+			t = t.SystemCtl(inst.GetHost(), inst.ServiceName(), "reload", inst.OS(), true)
+		} else {
+			// restart grafana
+			t = t.SystemCtl(inst.GetHost(), inst.ServiceName(), "restart", inst.OS(), true)
 		}
 
-		tasks = append(tasks, t)
+		tasks = append(tasks, t.BuildAsStep(fmt.Sprintf("  - Reload %s -> %s", inst.ComponentName(), inst.ID())))
 	}
 	return tasks
 }
@@ -316,7 +315,8 @@ func buildScaleOutTask(
 			return operator.Start(ctx, newPart, operator.Options{OptTimeout: gOpt.OptTimeout, Operation: operator.ScaleOutOperation}, tlsCfg)
 		}).
 			ParallelStep("+ Refresh components conifgs", gOpt.Force, refreshConfigTasks...).
-			ParallelStep("+ Reload prometheus", gOpt.Force, buildReloadPromTasks(metadata.GetTopology(), m.logger, gOpt)...)
+			ParallelStep("+ Reload prometheus and grafana", gOpt.Force,
+				buildReloadPromAndGrafanaTasks(metadata.GetTopology(), m.logger, gOpt)...)
 	}
 
 	// remove scale-out file lock
