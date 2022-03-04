@@ -166,7 +166,6 @@ func (m *Manager) Deploy(
 	}
 
 	var (
-		envInitTasks      []*task.StepDisplay // tasks which are used to initialize environment
 		downloadCompTasks []*task.StepDisplay // tasks which are used to download components
 		deployCompTasks   []*task.StepDisplay // tasks which are used to copy components to remote host
 	)
@@ -201,45 +200,8 @@ func (m *Manager) Deploy(
 
 	uniqueHosts, noAgentHosts := getMonitorHosts(topo)
 
-	for host, hostInfo := range uniqueHosts {
-		var dirs []string
-		for _, dir := range []string{globalOptions.DeployDir, globalOptions.LogDir} {
-			if dir == "" {
-				continue
-			}
-
-			dirs = append(dirs, spec.Abs(globalOptions.User, dir))
-		}
-		// the default, relative path of data dir is under deploy dir
-		if strings.HasPrefix(globalOptions.DataDir, "/") {
-			dirs = append(dirs, globalOptions.DataDir)
-		}
-
-		t := task.NewBuilder(m.logger).
-			RootSSH(
-				host,
-				hostInfo.ssh,
-				opt.User,
-				sshConnProps.Password,
-				sshConnProps.IdentityFile,
-				sshConnProps.IdentityFilePassphrase,
-				gOpt.SSHTimeout,
-				gOpt.OptTimeout,
-				gOpt.SSHProxyHost,
-				gOpt.SSHProxyPort,
-				gOpt.SSHProxyUser,
-				sshProxyProps.Password,
-				sshProxyProps.IdentityFile,
-				sshProxyProps.IdentityFilePassphrase,
-				gOpt.SSHProxyTimeout,
-				gOpt.SSHType,
-				globalOptions.SSHType,
-			).
-			EnvInit(host, globalOptions.User, globalOptions.Group, opt.SkipCreateUser || globalOptions.User == opt.User).
-			Mkdir(globalOptions.User, host, dirs...).
-			BuildAsStep(fmt.Sprintf("  - Prepare %s:%d", host, hostInfo.ssh))
-		envInitTasks = append(envInitTasks, t)
-	}
+	// init remote host environment
+	envInitTasks := buildEnvInitTasks(m, name, metadata, opt, gOpt, sshConnProps, sshProxyProps, uniqueHosts)
 
 	if iterErr != nil {
 		return iterErr
