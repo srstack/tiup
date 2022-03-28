@@ -59,8 +59,18 @@ func NewHTTPClient(timeout time.Duration, tlsConfig *tls.Config) *HTTPClient {
 	}
 }
 
-// SetRequestHeader set http request header
-func (c *HTTPClient) SetRequestHeader(key, value string) {
+// SetTimeout set http request header
+func (c *HTTPClient) SetTimeout(header http.Header) {
+	c.header = header
+}
+
+// SetHeader set http request header
+func (c *HTTPClient) SetHeader(header http.Header) {
+	c.header = header
+}
+
+// AddHeader add http returns header
+func (c *HTTPClient) AddHeader(key, value string) {
 	if c.header == nil {
 		c.header = http.Header{}
 	}
@@ -179,6 +189,11 @@ func (c *HTTPClient) Delete(ctx context.Context, url string, body io.Reader) ([]
 // Client returns the http.Client
 func (c *HTTPClient) Client() *http.Client {
 	return c.client
+}
+
+// Header return the http.Header
+func (c *HTTPClient) Header() http.Header {
+	return c.header
 }
 
 // WithClient uses the specified HTTP client
