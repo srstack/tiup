@@ -211,7 +211,7 @@ jobs:
 
       - name: Check if this is a staging build
         id: check_staging
-        working-directory: ${{ github.workspace }}/homebrew-brew
+        working-directory: ${{ github.workspace }}
         run: |
           ls -l 
           pwd
