@@ -204,7 +204,7 @@ jobs:
       - name: Check out brew code
         uses: actions/checkout@v3
         with:
-          repository: https://github.com/pingcap/homebrew-brew
+          repository: git@github.com:pingcap/homebrew-brew.git
           ref: master
           path: ${{ github.workspace }}
           fetch-depth: 0
