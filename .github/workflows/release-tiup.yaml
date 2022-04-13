@@ -206,12 +206,12 @@ jobs:
         with:
           repository: pingcap/homebrew-brew
           ref: master
-          path: ${{ github.workspace }}
+          path: ${{ github.workspace }}/homebrew-brew
           fetch-depth: 0
 
       - name: Check if this is a staging build
         id: check_staging
-        working-directory: ${{ github.workspace }}
+        working-directory: ${{ github.workspace }}/homebrew-brew
         run: |
-          ls -l 
+          ls -al 
           pwd
