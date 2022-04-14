@@ -221,9 +221,10 @@ jobs:
           cat Formula/tiup.rb
           
       - name: Push new homebrew
-        uses: peter-evans/create-pull-request@v4
+        uses: actions-js/push@master
+        # if: github.event_name != 'release'
         with:
-          token: ${{ secrets.BREW_GITHUB_TOKEN }}
-          path: ${{ github.workspace }}/homebrew-brew
-          commit-message: "tiup: ${{ needs.release.outputs.REL_VER }}"
+          github_token: ${{ secrets.BREW_GITHUB_TOKEN }}
+          directory: ${{ github.workspace }}/homebrew-brew
+          message: "tiup: ${{ needs.release.outputs.REL_VER }}"
           branch: master
