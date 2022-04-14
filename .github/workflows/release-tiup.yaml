@@ -201,7 +201,7 @@ jobs:
   brew-upgrade:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    
+    needs: release
     steps:
       - name: Check out brew code
         uses: actions/checkout@v3
@@ -218,7 +218,7 @@ jobs:
           REL_VER: ${{ needs.release.outputs.REL_VER }}
         # if: github.event_name != 'release'
         run: |
-          sed -i 's/version:.*/version: "${REL_VER}"/g'  Formula/tiup.rb
+          sed -i 's/version.*/version "${REL_VER}"/g'  Formula/tiup.rb
           sed -i 's/tag:.*/tag:      "${REL_VER}"/g'  Formula/tiup.rb
           cat Formula/tiup.rb
           
