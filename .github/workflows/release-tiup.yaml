@@ -225,7 +225,7 @@ jobs:
         # if: github.event_name != 'release'
         with:
           github_token: ${{ secrets.BREW_GITHUB_TOKEN }}
-          directory: ${{ github.workspace }}/homebrew-brew }}
+          directory: ${{ github.workspace }}/homebrew-brew
           message: "tiup: ${{ needs.release.outputs.REL_VER }}"
           branch: master
           repository: srstack/homebrew-brew
