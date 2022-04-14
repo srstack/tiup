@@ -226,4 +226,4 @@ jobs:
           token: ${{ secrets.BREW_GITHUB_TOKEN }}
           path: ${{ github.workspace }}/homebrew-brew
           commit-message: "tiup: ${{ needs.release.outputs.REL_VER }}"
-          branch: "tiup:${{ needs.release.outputs.REL_VER }}"
+          branch: master
