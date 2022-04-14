@@ -229,3 +229,5 @@ jobs:
           message: "tiup: ${{ needs.release.outputs.REL_VER }}"
           branch: master
           repository: srstack/homebrew-brew
+          author_email: srstack0203@gmail.com
+          author_name: srstack
