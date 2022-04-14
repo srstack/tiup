@@ -204,7 +204,7 @@ jobs:
       - name: Check out brew code
         uses: actions/checkout@v3
         with:
-          repository: pingcap/homebrew-brew
+          repository: srstack/homebrew-brew
           ref: master
           path: ${{ github.workspace }}/homebrew-brew
           fetch-depth: 0
@@ -213,5 +213,8 @@ jobs:
         id: check_staging
         working-directory: ${{ github.workspace }}/homebrew-brew
         run: |
-          ls -al 
-          pwd
+          sed -i "s/version:.*/version: ${REL_VER}/g"  Formula/tiup.rb
+          sed -i "s/tag:.*/tag:      ${REL_VER}/g"  Formula/tiup.rb
+          cat Formula/tiup.rb
+          
+          
