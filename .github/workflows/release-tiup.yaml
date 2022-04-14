@@ -228,3 +228,4 @@ jobs:
           directory: ${{ github.workspace }}/homebrew-brew
           message: "tiup: ${{ needs.release.outputs.REL_VER }}"
           branch: master
+          force: true
