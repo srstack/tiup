@@ -212,7 +212,7 @@ jobs:
           fetch-depth: 0
 
       - name: Update and Check tiup version
-        id: check_staging
+        id: update_version
         working-directory: ${{ github.workspace }}/homebrew-brew
         # if: github.event_name != 'release'
         run: |
@@ -220,4 +220,11 @@ jobs:
           sed -i 's/tag:.*/tag:      "${{ needs.release.outputs.REL_VER }}"/g'  Formula/tiup.rb
           cat Formula/tiup.rb
           
-          
+      - name: Push new homebrew
+        uses: actions-js/push@master
+        with:
+          github_token: ${{ secrets.BREW_GITHUB_TOKEN }}
+          message: "tiup: ${{ needs.release.outputs.REL_VER }}"
+          branch: master
+          directory: ${{ github.workspace }}/homebrew-brew
+        id: push
