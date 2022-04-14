@@ -223,7 +223,7 @@ jobs:
           
       - name: Push new homebrew
         uses: actions-js/push@master
-        if: github.event_name != 'release'
+        if: github.event_name == 'release'
         with:
           github_token: ${{ secrets.BREW_GITHUB_TOKEN }}
           directory: ${{ github.workspace }}/homebrew-brew
