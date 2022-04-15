@@ -227,7 +227,7 @@ jobs:
           
       - name: Push new homebrew
         uses: actions-js/push@master
-        if: github.event_name == 'release'
+        #if: github.event_name == 'release'
         continue-on-error: true
         with:
           github_token: ${{ secrets.BREW_GITHUB_TOKEN }}
