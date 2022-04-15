@@ -198,6 +198,8 @@ jobs:
       #     prerelease: ${{ github.event.release.prerelease }}
       #     token: ${{ secrets.GITHUB_TOKEN }}
 
+  # continue-on-error: true
+  # if automatic update fails, please update brew manually 
   brew-upgrade:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -205,9 +207,10 @@ jobs:
     steps:
       - name: Check out brew code
         uses: actions/checkout@v3
+        continue-on-error: true
         with:
           repository: srstack/homebrew-brew
-          persist-credentials: false
+          #persist-credentials: false
           ref: master
           path: ${{ github.workspace }}/homebrew-brew
           fetch-depth: 0
@@ -216,6 +219,7 @@ jobs:
         id: update_version
         working-directory: ${{ github.workspace }}/homebrew-brew
         # if: github.event_name != 'release'
+        continue-on-error: true
         run: |
           sed -i 's/version.*/version "${{ needs.release.outputs.REL_VER }}"/g'  Formula/tiup.rb
           sed -i 's/tag:.*/tag:      "${{ needs.release.outputs.REL_VER }}"/g'  Formula/tiup.rb
@@ -224,6 +228,7 @@ jobs:
       - name: Push new homebrew
         uses: actions-js/push@master
         if: github.event_name == 'release'
+        continue-on-error: true
         with:
           github_token: ${{ secrets.BREW_GITHUB_TOKEN }}
           directory: ${{ github.workspace }}/homebrew-brew
