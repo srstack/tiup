@@ -40,6 +40,7 @@ require (
 	github.com/pingcap/kvproto v0.0.0-20220125073028-58f2ac94aa38
 	github.com/pingcap/log v0.0.0-20211215031037-e024ba4eb0ee // indirect
 	github.com/pingcap/tidb-insight/collector v0.0.0-20220111101533-227008e9835b
+	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_model v0.2.0
 	github.com/prometheus/common v0.32.1
 	github.com/prometheus/prom2json v1.3.0
@@ -64,6 +65,7 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220207234003-57398862261d
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+	golang.org/x/text v0.3.7
 	google.golang.org/genproto v0.0.0-20220208230804-65c12eb4c068
 	google.golang.org/grpc v1.44.0
 	gopkg.in/ini.v1 v1.66.3

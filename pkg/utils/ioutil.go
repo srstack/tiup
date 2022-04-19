@@ -20,6 +20,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -92,6 +93,41 @@ func IsSubDir(parent, sub string) bool {
 	return false
 }
 
+// Tar compresses the folder to tarball with gzip
+func Tar(writer io.Writer, from string) error {
+	compressW := gzip.NewWriter(writer)
+	defer compressW.Close()
+	tarW := tar.NewWriter(compressW)
+	defer tarW.Close()
+
+	return filepath.Walk(from, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		header, _ := tar.FileInfoHeader(info, "")
+		header.Name, _ = filepath.Rel(from, path)
+		// skip "."
+		if header.Name == "." {
+			return nil
+		}
+
+		err = tarW.WriteHeader(header)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			fd, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer fd.Close()
+			_, err = io.Copy(tarW, fd)
+			return err
+		}
+		return nil
+	})
+}
+
 // Untar decompresses the tarball
 func Untar(reader io.Reader, to string) error {
 	gr, err := gzip.NewReader(reader)
@@ -104,11 +140,9 @@ func Untar(reader io.Reader, to string) error {
 
 	decFile := func(hdr *tar.Header) error {
 		file := path.Join(to, hdr.Name)
-		if dir := filepath.Dir(file); IsNotExist(dir) {
-			err := os.MkdirAll(dir, 0755)
-			if err != nil {
-				return err
-			}
+		err := os.MkdirAll(filepath.Dir(file), 0755)
+		if err != nil {
+			return err
 		}
 		fw, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, hdr.FileInfo().Mode())
 		if err != nil {
@@ -128,11 +162,16 @@ func Untar(reader io.Reader, to string) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
-		if hdr.FileInfo().IsDir() {
+		switch hdr.Typeflag {
+		case tar.TypeDir:
 			if err := os.MkdirAll(path.Join(to, hdr.Name), hdr.FileInfo().Mode()); err != nil {
 				return errors.Trace(err)
 			}
-		} else {
+		case tar.TypeSymlink:
+			if err = os.Symlink(hdr.Linkname, filepath.Join(to, hdr.Name)); err != nil {
+				return errors.Trace(err)
+			}
+		default:
 			if err := decFile(hdr); err != nil {
 				return errors.Trace(err)
 			}

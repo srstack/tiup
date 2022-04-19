@@ -600,7 +600,7 @@ func fixFailedChecks(host string, res *operator.CheckResult, t *task.Builder) (s
 		if len(fields) < 2 {
 			return "", fmt.Errorf("can not perform action of service, %s", res.Msg)
 		}
-		t.SystemCtl(host, fields[1], fields[0], false)
+		t.SystemCtl(host, fields[1], fields[0], false, false)
 		msg = fmt.Sprintf("will try to '%s'", color.HiBlueString(res.Msg))
 	case operator.CheckNameSysctl:
 		fields := strings.Fields(res.Msg)
@@ -632,6 +632,15 @@ func fixFailedChecks(host string, res *operator.CheckResult, t *task.Builder) (s
 			"",
 			true)
 		msg = fmt.Sprintf("will try to %s, please check again after reboot", color.HiBlueString("disable THP"))
+	case operator.CheckNameSwap:
+		// not applying swappiness setting here, it should be fixed
+		// in the sysctl check
+		// t.Sysctl(host, "vm.swappiness", "0")
+		t.Shell(host,
+			"swapoff -a || exit 0", // ignore failure
+			"", true,
+		)
+		msg = "will try to disable swap, please also check /etc/fstab manually"
 	default:
 		msg = fmt.Sprintf("%s, auto fixing not supported", res)
 	}

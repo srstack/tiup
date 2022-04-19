@@ -1,5 +1,41 @@
 TiUP Changelog
 
+## [1.9.4] 2022-04-12
+
+## Fixes
+
+- Fix copy error when file is read only in `tiup-playground` ([#1816](https://github.com/pingcap/tiup/pull/1816), [@breeswish](https://github.com/breeswish))
+- Fix `data-dir` not properly handled for TiCDC v6.0.0 in `tiup-cluster` ([#1838](https://github.com/pingcap/tiup/pull/1838), [@overvenus](https://github.com/overvenus))
+
+## [1.9.3] 2022-03-24
+
+### Fixes
+
+- Fix error running `exec` subcommand of `tiup-cluster` when hostname contains '-' ([#1794](https://github.com/pingcap/tiup/pull/1794), [@nexustar](https://github.com/nexustar))
+- Fix port conflict check for TiFlash instances in `tiup-cluster` ([#1805](https://github.com/pingcap/tiup/pull/1805), [@AstroProfundis](https://github.com/AstroProfundis))
+- Fix next-generation monitor (`ng-monitor`) not available in Prometheus ([#1806](https://github.com/pingcap/tiup/pull/1806), [@nexustar](https://github.com/nexustar))
+- Fix node_exporter metrics not collected if the host has only Prometheus deployed ([#1806](https://github.com/pingcap/tiup/pull/1806), [@nexustar](https://github.com/nexustar))
+- Fix `--host 0.0.0.0` not working in `tiup-playground` ([#1811](https://github.com/pingcap/tiup/pull/1811), [@nexustar](https://github.com/nexustar))
+
+### Improvements
+
+- Support cleanup audit log files for `tiup-cluster` and `tiup-dm` ([#1780](https://github.com/pingcap/tiup/pull/1780), [@srstack](https://github.com/srstack))
+- Add anonymous login example to Grafana configuration templates ([#1785](https://github.com/pingcap/tiup/pull/1785)[@sunzhaoyang](https://github.com/sunzhaoyang))
+
+## [1.9.2] 2022-03-10
+
+### Fixes
+
+- Fix next-generation monitor (`ng-monitor`) is not started by default for nightly versions in `tiup-cluster` ([#1760](https://github.com/pingcap/tiup/pull/1760), [@nexustar](https://github.com/nexustar))
+- Fix the `--ignore-config-check` argument not working during deploy process in `tiup-cluster` ([#1774](https://github.com/pingcap/tiup/pull/1774), [@AstroProfundis](https://github.com/AstroProfundis))
+- Fix incorrect `initial-commit-ts` config for drainer in `tiup-cluster` ([#1776](https://github.com/pingcap/tiup/pull/1776), [@nexustar](https://github.com/nexustar))
+- Fix symbolic link handling when decompressing packages ([#1784](https://github.com/pingcap/tiup/pull/1784), [@nexustar](https://github.com/nexustar))
+
+### Improvements
+
+- Check for inactive Prometheus service before `reload` in `tiup-cluster` ([#1775](https://github.com/pingcap/tiup/pull/1775), [@nexustar](https://github.com/nexustar))
+- Mark Oracle Linux as supported OS in `check` result of `tiup-cluster` ([#1786](https://github.com/pingcap/tiup/pull/1786), [@srstack](https://github.com/srstack))
+
 ## [1.9.1] 2022-02-24
 
 ### Fixes

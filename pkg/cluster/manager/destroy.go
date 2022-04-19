@@ -72,7 +72,13 @@ func (m *Manager) DestroyCluster(name string, gOpt operator.Options, destroyOpt 
 	}
 	t := b.
 		Func("StopCluster", func(ctx context.Context) error {
-			return operator.Stop(ctx, topo, operator.Options{Force: destroyOpt.Force}, tlsCfg)
+			return operator.Stop(
+				ctx,
+				topo,
+				operator.Options{Force: destroyOpt.Force},
+				false, /* eviceLeader */
+				tlsCfg,
+			)
 		}).
 		Func("DestroyCluster", func(ctx context.Context) error {
 			return operator.Destroy(ctx, topo, destroyOpt)
@@ -166,7 +172,7 @@ func (m *Manager) DestroyTombstone(
 		UpdateMeta(name, clusterMeta, nodes).
 		UpdateTopology(name, m.specManager.Path(name), clusterMeta, nodes).
 		ParallelStep("+ Refresh instance configs", gOpt.Force, regenConfigTasks...).
-		ParallelStep("+ Reloda prometheus and grafana", gOpt.Force,
+		ParallelStep("+ Reload prometheus and grafana", gOpt.Force,
 			buildReloadPromAndGrafanaTasks(metadata.GetTopology(), m.logger, gOpt)...).
 		Build()
 

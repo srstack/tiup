@@ -56,16 +56,17 @@ func buildReloadPromAndGrafanaTasks(
 		if deletedNodes.Exist(inst.ID()) {
 			continue
 		}
-		// reload Prometheus
-		action := "reload"
-		if inst.ComponentName() == spec.ComponentGrafana {
+
+		t := task.NewBuilder(logger)
+		if inst.ComponentName() == spec.ComponentPrometheus {
+			// reload Prometheus
+			t = t.SystemCtl(inst.GetHost(), inst.ServiceName(), "reload", true, true)
+		} else {
 			// restart grafana
-			action = "restart"
+			t = t.SystemCtl(inst.GetHost(), inst.ServiceName(), "restart", true, false)
 		}
-		t := task.NewBuilder(logger).
-			SystemCtl(inst.GetHost(), inst.ServiceName(), action, true).
-			BuildAsStep(fmt.Sprintf("  - Reload %s -> %s", inst.ComponentName(), inst.ID()))
-		tasks = append(tasks, t)
+
+		tasks = append(tasks, t.BuildAsStep(fmt.Sprintf("  - Reload %s -> %s", inst.ComponentName(), inst.ID())))
 	}
 	return tasks
 }
@@ -313,7 +314,15 @@ func buildScaleOutTask(
 		})
 	} else {
 		builder.Func("Start new instances", func(ctx context.Context) error {
-			return operator.Start(ctx, newPart, operator.Options{OptTimeout: gOpt.OptTimeout, Operation: operator.ScaleOutOperation}, tlsCfg)
+			return operator.Start(ctx,
+				newPart,
+				operator.Options{
+					OptTimeout: gOpt.OptTimeout,
+					Operation:  operator.ScaleOutOperation,
+				},
+				false, /* restoreLeader */
+				tlsCfg,
+			)
 		}).
 			ParallelStep("+ Refresh components conifgs", gOpt.Force, refreshConfigTasks...).
 			ParallelStep("+ Reload prometheus and grafana", gOpt.Force,

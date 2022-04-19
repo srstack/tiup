@@ -17,11 +17,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/joomcode/errorx"
 	perrs "github.com/pingcap/errors"
+	"github.com/pingcap/tiup/pkg/cluster/clusterutil"
 	"github.com/pingcap/tiup/pkg/cluster/ctxt"
 	operator "github.com/pingcap/tiup/pkg/cluster/operation"
 	"github.com/pingcap/tiup/pkg/cluster/spec"
@@ -89,7 +92,7 @@ func (m *Manager) EnableCluster(name string, gOpt operator.Options, isEnable boo
 }
 
 // StartCluster start the cluster with specified name.
-func (m *Manager) StartCluster(name string, gOpt operator.Options, fn ...func(b *task.Builder, metadata spec.Metadata)) error {
+func (m *Manager) StartCluster(name string, gOpt operator.Options, restoreLeader bool, fn ...func(b *task.Builder, metadata spec.Metadata)) error {
 	m.logger.Infof("Starting cluster %s...", name)
 
 	// check locked
@@ -116,7 +119,7 @@ func (m *Manager) StartCluster(name string, gOpt operator.Options, fn ...func(b 
 	}
 
 	b.Func("StartCluster", func(ctx context.Context) error {
-		return operator.Start(ctx, topo, gOpt, tlsCfg)
+		return operator.Start(ctx, topo, gOpt, restoreLeader, tlsCfg)
 	})
 
 	for _, f := range fn {
@@ -143,7 +146,12 @@ func (m *Manager) StartCluster(name string, gOpt operator.Options, fn ...func(b 
 }
 
 // StopCluster stop the cluster.
-func (m *Manager) StopCluster(name string, gOpt operator.Options, skipConfirm bool) error {
+func (m *Manager) StopCluster(
+	name string,
+	gOpt operator.Options,
+	skipConfirm,
+	evictLeader bool,
+) error {
 	// check locked
 	if err := m.specManager.ScaleOutLockedErr(name); err != nil {
 		return err
@@ -181,7 +189,7 @@ func (m *Manager) StopCluster(name string, gOpt operator.Options, skipConfirm bo
 
 	t := b.
 		Func("StopCluster", func(ctx context.Context) error {
-			return operator.Stop(ctx, topo, gOpt, tlsCfg)
+			return operator.Stop(ctx, topo, gOpt, evictLeader, tlsCfg)
 		}).
 		Build()
 
@@ -296,4 +304,82 @@ func checkTiFlashWithTLS(topo spec.Topology, version string) error {
 		}
 	}
 	return nil
+}
+
+// BackupClusterMeta backup cluster meta to given filepath
+func (m *Manager) BackupClusterMeta(clusterName, filePath string) error {
+	exist, err := m.specManager.Exist(clusterName)
+	if err != nil {
+		return err
+	}
+	if !exist {
+		return fmt.Errorf("cluster %s does not exist", clusterName)
+	}
+	// check locked
+	if err := m.specManager.ScaleOutLockedErr(clusterName); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+	return utils.Tar(f, m.specManager.Path(clusterName))
+}
+
+// RestoreClusterMeta restore cluster meta by given filepath
+func (m *Manager) RestoreClusterMeta(clusterName, filePath string, skipConfirm bool) error {
+	if err := clusterutil.ValidateClusterNameOrError(clusterName); err != nil {
+		return err
+	}
+
+	fi, err := os.Stat(m.specManager.Path(clusterName))
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return perrs.AddStack(err)
+		}
+		m.logger.Infof(fmt.Sprintf("meta of cluster %s didn't exist before restore", clusterName))
+		skipConfirm = true
+	} else {
+		m.logger.Warnf(color.HiRedString(tui.ASCIIArtWarning))
+
+		exist, err := m.specManager.Exist(clusterName)
+		if err != nil {
+			return err
+		}
+		if exist {
+			m.logger.Infof(fmt.Sprintf("the exist meta.yaml of cluster %s was last modified at %s", clusterName, color.HiYellowString(fi.ModTime().Format(time.RFC3339))))
+		} else {
+			m.logger.Infof(fmt.Sprintf("the meta.yaml of cluster %s does not exist", clusterName))
+		}
+	}
+	fi, err = os.Stat(filePath)
+	if err != nil {
+		return err
+	}
+	m.logger.Warnf(fmt.Sprintf("the given tarball was last modified at %s", color.HiYellowString(fi.ModTime().Format(time.RFC3339))))
+	if !skipConfirm {
+		if err := tui.PromptForAnswerOrAbortError(
+			"Yes, I know my cluster meta will be be overridden.",
+			fmt.Sprintf("This operation will override topology file and other meta file of %s cluster %s .",
+				m.sysName,
+				color.HiYellowString(clusterName),
+			)+"\nAre you sure to continue?",
+		); err != nil {
+			return err
+		}
+		m.logger.Infof("Destroying cluster...")
+	}
+	err = os.RemoveAll(m.specManager.Path(clusterName))
+	if err != nil {
+		return err
+	}
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	err = utils.Untar(f, m.specManager.Path(clusterName))
+	if err == nil {
+		m.logger.Infof(fmt.Sprintf("restore meta of cluster %s successfully.", clusterName))
+	}
+	return err
 }
